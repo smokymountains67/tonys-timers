@@ -1,14 +1,23 @@
 /**
- * Tony's Timers — Shared Timer UI Builder v2
- * - Settings live in the gear drawer (no inline settings panel)
- * - Big round display readable from the rower
- * - Workout completion % progress bar
+ * Tony's Timers — Shared Timer UI Builder v3
+ * - Phase-specific ring/dot colors (prep=yellow, work=red, rest=green, done=blue)
+ * - Round + total time as info blocks BELOW the controls
+ * - Big % complete below the buttons
+ * - Clean ring center — just the countdown time
  */
 
 import { TimerEngine, beep, speak, vibrate, formatTime,
          clamp, shouldBeep, shouldSpeak, VIB } from '../engine.js';
 
 export const RING_LENGTH = 339.292;
+
+// Phase color map
+const PHASE_COLORS = {
+  prep: '#f4c84a',
+  work: '#ff5a4f',
+  rest: '#28c98b',
+  done: '#78a6ff'
+};
 
 export function buildTimerUI(config) {
   const {
@@ -27,7 +36,7 @@ export function buildTimerUI(config) {
     showPhaseStrip = true,
   } = config;
 
-  // Apply accent
+  // Apply default accent for home screen glow
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
 
@@ -46,56 +55,68 @@ export function buildTimerUI(config) {
   // ── Render timer panel ─────────────────────────────────────────────────────
   timerMain.innerHTML = `
     <div class="timer-panel">
+
+      <!-- Phase label at top -->
       <div class="phase-header">
         <div class="phase-eyebrow" id="phaseEyebrow">Ready</div>
         <div class="phase-label"   id="phaseLabel">—</div>
       </div>
 
+      <!-- Ring — just the time inside, nothing else -->
       <div class="ring-wrap">
         <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
           <circle class="ring-track" cx="60" cy="60" r="54"/>
           <circle class="ring-fill"  id="ringFill" cx="60" cy="60" r="54"/>
         </svg>
         <div class="ring-center">
-          <div class="time-display"  id="timeDisplay">--:--</div>
-          <div class="round-display" id="roundDisplay"></div>
-          <div class="total-label"   id="totalLabel"></div>
+          <div class="time-display" id="timeDisplay">--:--</div>
         </div>
       </div>
 
-      <div class="workout-progress" id="workoutProgress" style="display:none">
-        <div class="progress-row">
-          <span class="progress-pct"   id="progressPct">0%</span>
-          <span class="progress-total" id="progressTotal"></span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" id="progressFill" style="width:0%"></div>
-        </div>
-      </div>
-
+      <!-- Phase dots strip -->
       ${showPhaseStrip ? `<div class="phase-strip" id="phaseStrip"></div>` : '<div></div>'}
 
+      <!-- Controls -->
       <div class="controls">
         <button class="btn-primary"   id="startPauseBtn" type="button">Start</button>
         <button class="btn-secondary" id="resetBtn"      type="button">Reset</button>
       </div>
+
+      <!-- Info blocks below controls -->
+      <div class="info-blocks" id="infoBlocks" style="display:none">
+        <div class="info-block">
+          <div class="info-value" id="roundDisplay">—</div>
+          <div class="info-key">Round</div>
+        </div>
+        <div class="info-block info-block-center">
+          <div class="info-pct" id="progressPct">0%</div>
+          <div class="info-key">Complete</div>
+          <div class="progress-track" style="margin-top:6px">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+          </div>
+        </div>
+        <div class="info-block info-block-right">
+          <div class="info-value" id="totalLabel">—</div>
+          <div class="info-key">Remaining</div>
+        </div>
+      </div>
+
     </div>`;
 
   // ── Element refs ───────────────────────────────────────────────────────────
   const els = {
-    phaseEyebrow:   document.getElementById('phaseEyebrow'),
-    phaseLabel:     document.getElementById('phaseLabel'),
-    ringFill:       document.getElementById('ringFill'),
-    timeDisplay:    document.getElementById('timeDisplay'),
-    roundDisplay:   document.getElementById('roundDisplay'),
-    totalLabel:     document.getElementById('totalLabel'),
-    workoutProgress:document.getElementById('workoutProgress'),
-    progressPct:    document.getElementById('progressPct'),
-    progressTotal:  document.getElementById('progressTotal'),
-    progressFill:   document.getElementById('progressFill'),
-    phaseStrip:     document.getElementById('phaseStrip'),
-    startPause:     document.getElementById('startPauseBtn'),
-    reset:          document.getElementById('resetBtn'),
+    phaseEyebrow: document.getElementById('phaseEyebrow'),
+    phaseLabel:   document.getElementById('phaseLabel'),
+    ringFill:     document.getElementById('ringFill'),
+    timeDisplay:  document.getElementById('timeDisplay'),
+    phaseStrip:   document.getElementById('phaseStrip'),
+    startPause:   document.getElementById('startPauseBtn'),
+    reset:        document.getElementById('resetBtn'),
+    infoBlocks:   document.getElementById('infoBlocks'),
+    roundDisplay: document.getElementById('roundDisplay'),
+    progressPct:  document.getElementById('progressPct'),
+    progressFill: document.getElementById('progressFill'),
+    totalLabel:   document.getElementById('totalLabel'),
   };
 
   // ── Storage ────────────────────────────────────────────────────────────────
@@ -112,19 +133,18 @@ export function buildTimerUI(config) {
     }
   }
 
-  // Total workout ms (computed once per schedule load)
   let totalWorkoutMs = 0;
 
   // ── Engine ─────────────────────────────────────────────────────────────────
   const engine = new TimerEngine({
-    onTick(state)   { renderState(state); },
-    onPhase(phase)  {
+    onTick(state)  { renderState(state); },
+    onPhase(phase) {
       const s = phaseSounds[phase.type] || {};
       if (shouldBeep(soundMode())) beep(s.freq || 660);
       if (shouldSpeak(soundMode())) speak(s.voice || phase.label);
       vibrate(phase.type === 'work' ? VIB.work : VIB.rest);
     },
-    onComplete()    {
+    onComplete() {
       if (shouldBeep(soundMode())) beep(440, 0.25);
       if (shouldSpeak(soundMode())) speak('Complete. Great work!');
       vibrate(VIB.done);
@@ -135,71 +155,80 @@ export function buildTimerUI(config) {
   // ── Render state ───────────────────────────────────────────────────────────
   function renderState(state) {
     const { phase, progress, remainingMs, totalRemainingMs,
-            isRunning, hasStarted, isComplete,
-            currentIndex, scheduleLength } = state;
+            isRunning, hasStarted, isComplete, currentIndex } = state;
 
-    // Ring
+    // ── Phase color ──────────────────────────────────────────────────────────
+    const phaseType  = isComplete ? 'done' : (phase?.type || 'prep');
+    const phaseColor = PHASE_COLORS[phaseType] || accent;
+
+    // Ring color + progress
+    els.ringFill.style.stroke = phaseColor;
     els.ringFill.style.strokeDashoffset = RING_LENGTH * (1 - progress);
 
     // Time
     els.timeDisplay.textContent = formatTime(remainingMs);
+    els.timeDisplay.style.color = phaseColor;
 
+    // Phase labels
     if (isComplete) {
       els.phaseEyebrow.textContent = 'Done';
+      els.phaseEyebrow.style.color = phaseColor;
       els.phaseLabel.textContent   = 'Complete!';
-      els.roundDisplay.textContent = '🔥 Workout Complete';
-      els.totalLabel.textContent   = '';
-      if (els.workoutProgress) {
-        els.workoutProgress.style.display = '';
-        els.progressPct.textContent  = '100%';
-        els.progressFill.style.width = '100%';
-        els.progressTotal.textContent = '';
-      }
     } else if (phase) {
       els.phaseEyebrow.textContent = phase.type.toUpperCase();
+      els.phaseEyebrow.style.color = phaseColor;
       els.phaseLabel.textContent   = phase.label;
-
-      // Big round display
-      els.roundDisplay.textContent = phase.roundLabel || '';
-
-      // Total remaining
-      els.totalLabel.textContent = totalRemainingMs > 0
-        ? formatTime(totalRemainingMs) + ' remaining'
-        : '';
-
-      // Progress bar
-      if (totalWorkoutMs > 0) {
-        const elapsed  = totalWorkoutMs - totalRemainingMs;
-        const pct      = Math.min(100, Math.round((elapsed / totalWorkoutMs) * 100));
-        els.workoutProgress.style.display = '';
-        els.progressPct.textContent       = pct + '%';
-        els.progressFill.style.width      = pct + '%';
-        els.progressTotal.textContent     = formatTime(totalWorkoutMs) + ' total';
-      }
     }
 
-    // Phase strip
+    // Phase strip dots — each keeps its own type color
     if (showPhaseStrip && els.phaseStrip) {
       const dots = els.phaseStrip.querySelectorAll('.phase-dot');
       dots.forEach((dot, i) => dot.classList.toggle('active', i <= currentIndex));
     }
 
-    // Button label
-    els.startPause.textContent = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
+    // Info blocks below controls
+    if (totalWorkoutMs > 0 || isComplete) {
+      els.infoBlocks.style.display = '';
+
+      // Round
+      els.roundDisplay.textContent = isComplete
+        ? '🔥 Done'
+        : (phase?.roundLabel || '—');
+
+      // Progress %
+      const elapsed = Math.max(0, totalWorkoutMs - totalRemainingMs);
+      const pct     = isComplete ? 100 : Math.min(99, Math.round((elapsed / totalWorkoutMs) * 100));
+      els.progressPct.textContent       = pct + '%';
+      els.progressFill.style.width      = pct + '%';
+      els.progressFill.style.background = phaseColor;
+
+      // Time remaining
+      els.totalLabel.textContent = isComplete
+        ? '0:00'
+        : formatTime(totalRemainingMs);
+    }
+
+    // Button
+    els.startPause.textContent          = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
+    els.startPause.style.background     = phaseColor;
+    els.startPause.style.color          = phaseType === 'prep' ? '#1a1400' :
+                                          phaseType === 'rest' ? '#071a10' :
+                                          phaseType === 'done' ? '#05102a' : '#fff';
   }
 
   // ── Phase strip ────────────────────────────────────────────────────────────
   function buildPhaseStrip(schedule) {
     if (!showPhaseStrip || !els.phaseStrip) return;
-    els.phaseStrip.innerHTML = schedule
-      .map(p => `<span class="phase-dot ${p.type}"></span>`)
-      .join('');
+    els.phaseStrip.innerHTML = schedule.map(p => {
+      const col = PHASE_COLORS[p.type] || accent;
+      return `<span class="phase-dot ${p.type}" style="--dot-color:${col}"></span>`;
+    }).join('');
   }
 
-  // ── Load schedule ──────────────────────────────────────────────────────────
+  // ── Load ───────────────────────────────────────────────────────────────────
   function reload() {
-    const schedule   = buildSchedule();
-    totalWorkoutMs   = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
+    const schedule = buildSchedule();
+    totalWorkoutMs = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
     buildPhaseStrip(schedule);
     engine.load(schedule);
     saveToStorage();
@@ -208,19 +237,14 @@ export function buildTimerUI(config) {
   loadFromStorage();
   reload();
 
-  // ── Controls ───────────────────────────────────────────────────────────────
+  // ── Event wiring ───────────────────────────────────────────────────────────
   els.startPause.addEventListener('click', () => engine.toggle());
-  els.reset.addEventListener('click', () => reload());
+  els.reset.addEventListener('click',     () => reload());
 
-  // Preset button in drawer
   if (onPreset) {
-    drawerPreset.addEventListener('click', () => {
-      onPreset();
-      reload();
-    });
+    drawerPreset.addEventListener('click', () => { onPreset(); reload(); });
   }
 
-  // Settings inputs in drawer
   drawerInputGrid.querySelectorAll('input, select').forEach(input => {
     input.addEventListener('change', () => {
       if (onSettingsChange) onSettingsChange(input);
@@ -228,7 +252,6 @@ export function buildTimerUI(config) {
     });
   });
 
-  // Re-wire after drawer renders (drawer may have been repopulated)
   const observer = new MutationObserver(() => {
     drawerInputGrid.querySelectorAll('input, select').forEach(input => {
       if (!input.dataset.wired) {

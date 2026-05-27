@@ -278,51 +278,65 @@ p, h1, h2, h3 { margin: 0; }
 }
 
 /* ── Round display — big and readable from the rower ─────────────────────── */
-.round-display {
+/* ── Phase strip ──────────────────────────────────────────────────────────── */
+.phase-strip { display: flex; gap: 5px; min-height: 10px; }
+.phase-dot {
+  height: 7px; flex: 1 1 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+  transition: background 200ms;
+}
+.phase-dot.active { background: var(--dot-color, var(--accent)); }
+
+/* ── Info blocks below controls ───────────────────────────────────────────── */
+.info-blocks {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.info-block {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.info-value {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(1.4rem, 7vw, 2.2rem);
+  font-size: 1rem;
   font-weight: 900;
   color: var(--text);
+  line-height: 1.1;
   letter-spacing: 0.02em;
-  line-height: 1;
 }
 
-.total-label {
-  color: var(--muted);
-  font-size: 0.72rem; font-weight: 600;
-  opacity: 0.6; letter-spacing: 0.03em;
-}
-
-/* ── Workout progress bar ─────────────────────────────────────────────────── */
-.workout-progress {
-  display: grid;
-  gap: 6px;
-}
-
-.progress-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.progress-pct {
+.info-pct {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 1rem; font-weight: 900;
+  font-size: 2rem;
+  font-weight: 900;
   color: var(--accent);
-  min-width: 44px;
-  letter-spacing: 0.02em;
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
-.progress-total {
-  font-size: 0.72rem; font-weight: 600;
-  color: var(--muted); opacity: 0.6;
-  letter-spacing: 0.03em;
+.info-key {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .progress-track {
   width: 100%;
-  height: 6px;
+  height: 5px;
   background: rgba(255,255,255,0.08);
   border-radius: 999px;
   overflow: hidden;
@@ -332,19 +346,9 @@ p, h1, h2, h3 { margin: 0; }
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
-  transition: width 300ms ease;
-  min-width: 4px;
+  transition: width 300ms ease, background 200ms ease;
+  min-width: 3px;
 }
-
-/* ── Phase strip ──────────────────────────────────────────────────────────── */
-.phase-strip { display: flex; gap: 5px; min-height: 10px; }
-.phase-dot {
-  height: 7px; flex: 1 1 7px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.12);
-  transition: background 200ms;
-}
-.phase-dot.active { background: var(--accent); }
 
 /* ── Controls ─────────────────────────────────────────────────────────────── */
 .controls { display: flex; gap: 10px; }

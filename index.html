@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1017">
+  <meta name="description" content="Tony's Timers — Every timer you need. Pay once, no ads, no subscriptions.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tony's Timers">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="shared.css">
+  <link rel="stylesheet" href="timers/timers.css">
+  <title>Tony's Timers</title>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HOME SCREEN
+═══════════════════════════════════════════════════════ -->
+<div id="homeScreen">
+  <header class="home-header">
+    <h1 class="home-logo">Tony's Timers</h1>
+    <p class="home-tagline">Every timer you need &middot; No ads &middot; Ever</p>
+  </header>
+
+  <div class="timer-grid" id="timerGrid">
+    <div class="timer-card" data-timer="hiit" style="--card-color:#ff5a4f">
+      <div class="card-icon">🔥</div>
+      <div class="card-name">HIIT</div>
+      <div class="card-desc">High-intensity intervals with work & rest rounds</div>
+    </div>
+    <div class="timer-card" data-timer="tabata" style="--card-color:#ff8c42">
+      <div class="card-icon">⚡</div>
+      <div class="card-name">Tabata</div>
+      <div class="card-desc">Classic 20s work / 10s rest protocol</div>
+    </div>
+    <div class="timer-card" data-timer="emom" style="--card-color:#f4c84a">
+      <div class="card-icon">📍</div>
+      <div class="card-name">EMOM</div>
+      <div class="card-desc">Every Minute On the Minute training</div>
+    </div>
+    <div class="timer-card" data-timer="amrap" style="--card-color:#a855f7">
+      <div class="card-icon">♾️</div>
+      <div class="card-name">AMRAP</div>
+      <div class="card-desc">As Many Rounds As Possible countdown</div>
+    </div>
+    <div class="timer-card" data-timer="rest" style="--card-color:#28c98b">
+      <div class="card-icon">💚</div>
+      <div class="card-name">Rest</div>
+      <div class="card-desc">Simple between-set recovery timer</div>
+    </div>
+    <div class="timer-card" data-timer="pomodoro" style="--card-color:#e05c3a">
+      <div class="card-icon">🍅</div>
+      <div class="card-name">Pomodoro</div>
+      <div class="card-desc">Focus sessions with short & long breaks</div>
+    </div>
+    <div class="timer-card" data-timer="meditation" style="--card-color:#6366f1">
+      <div class="card-icon">🧘</div>
+      <div class="card-name">Meditation</div>
+      <div class="card-desc">Timed sessions with gentle interval bells</div>
+    </div>
+    <div class="timer-card" data-timer="fasting" style="--card-color:#14b8a6">
+      <div class="card-icon">⏳</div>
+      <div class="card-name">Fasting</div>
+      <div class="card-desc">Track your 16:8, 18:6 or custom fast</div>
+    </div>
+    <div class="timer-card" data-timer="prayer" style="--card-color:#d4a517">
+      <div class="card-icon">✝️</div>
+      <div class="card-name">Prayer</div>
+      <div class="card-desc">Quiet timed prayer with gentle reminders</div>
+    </div>
+    <div class="timer-card" data-timer="chess" style="--card-color:#78a6ff">
+      <div class="card-icon">♟️</div>
+      <div class="card-name">Chess Clock</div>
+      <div class="card-desc">Two-player turn-based countdown</div>
+    </div>
+    <div class="timer-card" data-timer="presentation" style="--card-color:#64748b">
+      <div class="card-icon">🎤</div>
+      <div class="card-name">Presentation</div>
+      <div class="card-desc">Keep speakers on track with slide timers</div>
+    </div>
+    <div class="timer-card" data-timer="cooking" style="--card-color:#f59e0b">
+      <div class="card-icon">🍳</div>
+      <div class="card-name">Cooking</div>
+      <div class="card-desc">Multiple simultaneous kitchen timers</div>
+    </div>
+  </div>
+
+  <footer class="home-footer">Tony's Timers v2.0 &middot; Pay once, yours forever</footer>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TIMER SCREEN (shared shell, content injected by JS)
+═══════════════════════════════════════════════════════ -->
+<div id="timerScreen">
+  <div class="timer-shell">
+
+    <!-- Topbar -->
+    <div class="timer-topbar">
+      <button class="back-btn" id="backBtn" type="button">
+        <span class="back-arrow">←</span> All Timers
+      </button>
+      <div class="topbar-right">
+        <span class="brand-small">Tony's Timers</span>
+        <div class="wake-dot" id="wakeDot"></div>
+        <button class="sound-btn" id="soundBtn" type="button" aria-label="Sound mode">♪</button>
+      </div>
+    </div>
+
+    <!-- Main timer panel (content injected per timer) -->
+    <div class="timer-main" id="timerMain"></div>
+
+    <!-- Settings panel (content injected per timer) -->
+    <div class="settings-panel" id="settingsPanel" style="display:none"></div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     INSTALL BANNER
+═══════════════════════════════════════════════════════ -->
+<div id="installBanner">
+  <p><strong>Add to Home Screen</strong> for the best experience — works offline too.</p>
+  <button id="installBtn" type="button">Install</button>
+  <button id="dismissBtn" type="button" aria-label="Dismiss">✕</button>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

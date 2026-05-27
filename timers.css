@@ -1,0 +1,9 @@
+/* Tony's Timers — Per-timer color overrides */
+/* These are applied dynamically via JS but we keep the defaults here */
+
+/* Chess clock specific */
+.chess-player-btn { touch-action: manipulation; }
+.chess-player-btn:active { transform: scale(0.98); }
+
+/* Cooking timer specific */
+.cook-name:focus { outline: none; border-bottom: 1px solid var(--accent); }

@@ -1,0 +1,26 @@
+{
+  "name": "Tony's Timers",
+  "short_name": "Tony's Timers",
+  "start_url": ".",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#0d1017",
+  "theme_color": "#0d1017",
+  "description": "Every timer you need. Pay once, no ads, no subscriptions.",
+  "orientation": "portrait",
+  "categories": ["fitness", "health", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

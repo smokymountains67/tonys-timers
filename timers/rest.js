@@ -12,7 +12,7 @@ export async function init(ctx) {
   }
 
   return buildTimerUI({
-    accent: '#28c98b', accentDim: 'rgba(40,201,139,0.15)',
+    accent: '#28c98b', timerName: 'Rest', accentDim: 'rgba(40,201,139,0.15)',
     ...ctx,
     buildSchedule,
     renderSettings: () => numberField('restSecs', 'Rest (seconds)', 60, 5, 600),

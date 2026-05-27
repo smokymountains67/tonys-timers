@@ -1,22 +1,28 @@
 import { SOUND_MODES, SOUND_LABELS, SOUND_ICONS } from './engine.js';
 
 // ── Elements ──────────────────────────────────────────────────────────────────
-const homeScreen   = document.getElementById('homeScreen');
-const timerScreen  = document.getElementById('timerScreen');
-const timerMain    = document.getElementById('timerMain');
-const settingsPanel = document.getElementById('settingsPanel');
-const backBtn      = document.getElementById('backBtn');
-const soundBtn     = document.getElementById('soundBtn');
-const wakeDot      = document.getElementById('wakeDot');
-const installBanner = document.getElementById('installBanner');
-const installBtn   = document.getElementById('installBtn');
-const dismissBtn   = document.getElementById('dismissBtn');
+const homeScreen     = document.getElementById('homeScreen');
+const timerScreen    = document.getElementById('timerScreen');
+const timerMain      = document.getElementById('timerMain');
+const backBtn        = document.getElementById('backBtn');
+const soundBtn       = document.getElementById('soundBtn');
+const gearBtn        = document.getElementById('gearBtn');
+const wakeDot        = document.getElementById('wakeDot');
+const drawerOverlay  = document.getElementById('drawerOverlay');
+const settingsDrawer = document.getElementById('settingsDrawer');
+const drawerClose    = document.getElementById('drawerClose');
+const drawerTitle    = document.getElementById('drawerTitle');
+const drawerPreset   = document.getElementById('drawerPresetBtn');
+const drawerInputGrid= document.getElementById('drawerInputGrid');
+const installBanner  = document.getElementById('installBanner');
+const installBtn     = document.getElementById('installBtn');
+const dismissBtn     = document.getElementById('dismissBtn');
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const STORAGE_KEY  = 'tonys-timers-sound';
-let soundMode      = localStorage.getItem(STORAGE_KEY) || 'all-on';
-let currentTimer   = null;
-let deferredPrompt = null;
+const STORAGE_KEY = 'tonys-timers-sound';
+let soundMode     = localStorage.getItem(STORAGE_KEY) || 'all-on';
+let currentTimer  = null;
+let deferredPrompt= null;
 
 // ── Sound button ──────────────────────────────────────────────────────────────
 function updateSoundBtn() {
@@ -34,6 +40,26 @@ soundBtn.addEventListener('click', () => {
 
 updateSoundBtn();
 
+// ── Gear / settings drawer ────────────────────────────────────────────────────
+function openDrawer()  {
+  drawerOverlay.classList.add('open');
+  settingsDrawer.classList.add('open');
+  gearBtn.classList.add('gear-active');
+}
+
+function closeDrawer() {
+  drawerOverlay.classList.remove('open');
+  settingsDrawer.classList.remove('open');
+  gearBtn.classList.remove('gear-active');
+}
+
+gearBtn.addEventListener('click', () => {
+  settingsDrawer.classList.contains('open') ? closeDrawer() : openDrawer();
+});
+
+drawerClose.addEventListener('click', closeDrawer);
+drawerOverlay.addEventListener('click', closeDrawer);
+
 // ── Wake dot ──────────────────────────────────────────────────────────────────
 export function setWakeLock(active) {
   wakeDot.classList.toggle('active', active);
@@ -41,7 +67,6 @@ export function setWakeLock(active) {
 
 // ── Navigation ────────────────────────────────────────────────────────────────
 async function openTimer(id) {
-  // Dynamically import the timer module
   let mod;
   try {
     mod = await import(`./timers/${id}.js`);
@@ -50,31 +75,33 @@ async function openTimer(id) {
     return;
   }
 
-  // Tear down previous timer
   if (currentTimer?.destroy) currentTimer.destroy();
+  closeDrawer();
 
-  // Show timer screen
   homeScreen.style.display = 'none';
   timerScreen.classList.add('active');
 
-  // Let the module render itself into the shell
   currentTimer = await mod.init({
     timerMain,
-    settingsPanel,
+    drawerInputGrid,
+    drawerTitle,
+    drawerPreset,
     soundMode: () => soundMode,
-    setWakeLock
+    setWakeLock,
+    openDrawer,
+    closeDrawer
   });
 
-  // Update URL hash for back-button support
   history.pushState({ timer: id }, '', `#${id}`);
 }
 
 function goHome() {
   if (currentTimer?.destroy) currentTimer.destroy();
   currentTimer = null;
+  closeDrawer();
   timerScreen.classList.remove('active');
   homeScreen.style.display = '';
-  settingsPanel.style.display = 'none';
+  drawerInputGrid.innerHTML = '';
   history.pushState({}, '', '#');
 }
 
@@ -85,7 +112,6 @@ window.addEventListener('popstate', (e) => {
   else goHome();
 });
 
-// Handle direct URL with hash (e.g. bookmark)
 if (location.hash && location.hash.length > 1) {
   openTimer(location.hash.slice(1));
 }

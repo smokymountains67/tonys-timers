@@ -2,8 +2,9 @@ import { clamp, beep, speak, shouldBeep, shouldSpeak, TimerEngine, formatTime, V
 
 const RING_LENGTH = 339.292;
 
-export async function init({ timerMain, settingsPanel, soundMode, setWakeLock }) {
+export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#6366f1';
+  drawerTitle.textContent = 'Meditation Settings';
   const accentDim = 'rgba(99,102,241,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -32,8 +33,8 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
       </div>
     </div>`;
 
-  settingsPanel.style.display = '';
-  settingsPanel.innerHTML = `
+  
+  drawerInputGrid.innerHTML = `
     <div class="settings-header">
       <div class="settings-title">Settings</div>
       <button class="btn-preset" id="medPreset">15 min</button>
@@ -157,7 +158,7 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
   reset();
 
   return {
-    destroy() { cancelAnimationFrame(rafId); releaseWL(); timerMain.innerHTML=''; settingsPanel.innerHTML=''; settingsPanel.style.display='none'; },
+    destroy() { cancelAnimationFrame(rafId); releaseWL(); timerMain.innerHTML='';  },
     onSoundModeChange() {}
   };
 }

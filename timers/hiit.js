@@ -1,4 +1,4 @@
-import { clamp, secondsFromInputs, setTimeInputs } from '../engine.js';
+import { clamp } from '../engine.js';
 import { buildTimerUI, timeField, numberField } from './ui.js';
 
 const KEY = 'tonys-hiit';
@@ -8,10 +8,10 @@ export async function init(ctx) {
 
   function renderSettings() {
     return numberField('hiitRounds', 'Rounds', s.rounds, 1, 99)
-      + timeField('hiitPre',  'Pre Workout', 0, s.pre)
-      + timeField('hiitWork', 'Work',        0, s.work)
-      + timeField('hiitRest', 'Rest',        0, s.rest)
-      + timeField('hiitPost', 'Post Workout',Math.floor(s.post/60), s.post%60);
+      + timeField('hiitPre',  'Pre Workout',  Math.floor(s.pre/60),  s.pre%60)
+      + timeField('hiitWork', 'Work',         Math.floor(s.work/60), s.work%60)
+      + timeField('hiitRest', 'Rest',         Math.floor(s.rest/60), s.rest%60)
+      + timeField('hiitPost', 'Post Workout', Math.floor(s.post/60), s.post%60);
   }
 
   function readSettings() {
@@ -24,28 +24,29 @@ export async function init(ctx) {
     };
   }
 
-  function loadSettings(saved) {
-    Object.assign(s, saved);
-  }
+  function loadSettings(saved) { Object.assign(s, saved); }
 
   function buildSchedule() {
     const cfg = readSettings();
     const phases = [];
-    if (cfg.pre  > 0) phases.push({ type:'prep', label:'Get Ready', seconds: cfg.pre,  roundLabel:`${cfg.rounds} rounds ahead` });
+    if (cfg.pre > 0)
+      phases.push({ type:'prep', label:'Get Ready', seconds:cfg.pre, roundLabel:`${cfg.rounds} rounds ahead` });
     for (let r = 1; r <= cfg.rounds; r++) {
-      phases.push({ type:'work', label:'Work!', seconds: cfg.work, roundLabel:`Round ${r} of ${cfg.rounds}` });
+      phases.push({ type:'work', label:'Work!', seconds:cfg.work, roundLabel:`Round ${r} of ${cfg.rounds}` });
       if (cfg.rest > 0 && r < cfg.rounds)
-        phases.push({ type:'rest', label:'Rest', seconds: cfg.rest, roundLabel:`Round ${r} of ${cfg.rounds}` });
+        phases.push({ type:'rest', label:'Rest',  seconds:cfg.rest, roundLabel:`Round ${r} of ${cfg.rounds}` });
     }
-    if (cfg.post > 0) phases.push({ type:'done', label:'Cool Down', seconds: cfg.post, roundLabel:`Round ${cfg.rounds} of ${cfg.rounds}` });
+    if (cfg.post > 0)
+      phases.push({ type:'done', label:'Cool Down', seconds:cfg.post, roundLabel:`Round ${cfg.rounds} of ${cfg.rounds}` });
     return phases;
   }
 
   return buildTimerUI({
     accent: '#ff5a4f', accentDim: 'rgba(255,90,79,0.15)',
+    timerName: 'HIIT',
     ...ctx,
     buildSchedule, renderSettings,
-    readSettings, loadSettings: (saved) => loadSettings(saved),
+    readSettings, loadSettings,
     storageKey: KEY,
     presetLabel: 'Quick HIIT',
     onPreset() {
@@ -53,10 +54,10 @@ export async function init(ctx) {
       applyToDOM(s);
     },
     phaseSounds: {
-      prep: { freq: 660, voice: 'Get ready!' },
-      work: { freq: 880, voice: 'Work!' },
-      rest: { freq: 520, voice: 'Rest.' },
-      done: { freq: 440, voice: 'Cool down.' }
+      prep: { freq:660, voice:'Get ready!' },
+      work: { freq:880, voice:'Work!' },
+      rest: { freq:520, voice:'Rest.' },
+      done: { freq:440, voice:'Cool down.' }
     }
   });
 }
@@ -65,7 +66,7 @@ function getSettings() {
   try {
     const raw = localStorage.getItem('tonys-hiit');
     if (raw) return { rounds:8, pre:10, work:40, rest:20, post:60, ...JSON.parse(raw) };
-  } catch { /* ignore */ }
+  } catch {}
   return { rounds:8, pre:10, work:40, rest:20, post:60 };
 }
 
@@ -77,7 +78,7 @@ function getSeconds(prefix) {
 }
 
 function applyToDOM(s) {
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
   set('hiitRounds', s.rounds);
   set('hiitPreMin',  Math.floor(s.pre/60));  set('hiitPreSec',  s.pre%60);
   set('hiitWorkMin', Math.floor(s.work/60)); set('hiitWorkSec', s.work%60);

@@ -13,8 +13,9 @@ const INTENTIONS = [
   'Thy will be done.'
 ];
 
-export async function init({ timerMain, settingsPanel, soundMode, setWakeLock }) {
+export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#d4a517';
+  drawerTitle.textContent = 'Prayer Settings';
   const accentDim = 'rgba(212,165,23,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -47,8 +48,8 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
       </div>
     </div>`;
 
-  settingsPanel.style.display = '';
-  settingsPanel.innerHTML = `
+  
+  drawerInputGrid.innerHTML = `
     <div class="settings-header">
       <div class="settings-title">Settings</div>
       <button class="btn-preset" id="prayPreset">10 min</button>
@@ -161,7 +162,7 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
   reset();
 
   return {
-    destroy() { cancelAnimationFrame(rafId); releaseWL(); timerMain.innerHTML=''; settingsPanel.innerHTML=''; settingsPanel.style.display='none'; },
+    destroy() { cancelAnimationFrame(rafId); releaseWL(); timerMain.innerHTML='';  },
     onSoundModeChange() {}
   };
 }

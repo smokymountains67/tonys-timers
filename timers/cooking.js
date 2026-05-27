@@ -2,8 +2,9 @@ import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTime, vibrate, VIB }
 
 let nextId = 1;
 
-export async function init({ timerMain, settingsPanel, soundMode, setWakeLock }) {
+export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#f59e0b';
+  drawerTitle.textContent = 'Cooking Timers';
   const accentDim = 'rgba(245,158,11,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -148,7 +149,7 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
   return {
     destroy() {
       timers.forEach(t => cancelAnimationFrame(t.rafId));
-      timerMain.innerHTML=''; settingsPanel.innerHTML=''; settingsPanel.style.display='none';
+      timerMain.innerHTML=''; 
     },
     onSoundModeChange() {}
   };

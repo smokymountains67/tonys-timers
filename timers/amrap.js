@@ -17,7 +17,7 @@ export async function init(ctx) {
   }
 
   return buildTimerUI({
-    accent: '#a855f7', accentDim: 'rgba(168,85,247,0.15)',
+    accent: '#a855f7', timerName: 'AMRAP', accentDim: 'rgba(168,85,247,0.15)',
     ...ctx,
     buildSchedule,
     renderSettings: () => timeField('amrap', 'Duration', 20, 0),

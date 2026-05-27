@@ -107,15 +107,30 @@
       <div class="topbar-right">
         <span class="brand-small">Tony's Timers</span>
         <div class="wake-dot" id="wakeDot"></div>
-        <button class="sound-btn" id="soundBtn" type="button" aria-label="Sound mode">♪</button>
+        <button class="icon-btn" id="soundBtn" type="button" aria-label="Sound mode">♪</button>
+        <button class="icon-btn gear-btn" id="gearBtn" type="button" aria-label="Settings">⚙️</button>
       </div>
     </div>
 
     <!-- Main timer panel (content injected per timer) -->
     <div class="timer-main" id="timerMain"></div>
 
-    <!-- Settings panel (content injected per timer) -->
-    <div class="settings-panel" id="settingsPanel" style="display:none"></div>
+  </div><!-- end .timer-shell -->
+</div><!-- end #timerScreen -->
+
+<!-- Settings drawer overlay (shared across all timers) -->
+<div class="settings-drawer-overlay" id="drawerOverlay"></div>
+<div class="settings-drawer" id="settingsDrawer" role="dialog" aria-label="Timer settings">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawerTitle">Settings</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-preset" id="drawerPresetBtn" style="display:none">Default</button>
+      <button class="drawer-close" id="drawerClose" aria-label="Close settings">✕</button>
+    </div>
+  </div>
+  <div class="input-grid" id="drawerInputGrid"></div>
+</div>
 
   </div>
 </div>

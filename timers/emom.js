@@ -26,7 +26,7 @@ export async function init(ctx) {
   }
 
   return buildTimerUI({
-    accent: '#f4c84a', accentDim: 'rgba(244,200,74,0.15)',
+    accent: '#f4c84a', timerName: 'EMOM', accentDim: 'rgba(244,200,74,0.15)',
     ...ctx,
     buildSchedule,
     renderSettings: () =>

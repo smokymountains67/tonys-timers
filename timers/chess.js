@@ -1,7 +1,8 @@
 import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTime, vibrate, VIB } from '../engine.js';
 
-export async function init({ timerMain, settingsPanel, soundMode, setWakeLock }) {
+export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#78a6ff';
+  drawerTitle.textContent = 'Chess Clock Settings';
   const accentDim = 'rgba(120,166,255,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -44,8 +45,8 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
       </div>
     </div>`;
 
-  settingsPanel.style.display = '';
-  settingsPanel.innerHTML = `
+  
+  drawerInputGrid.innerHTML = `
     <div class="settings-header">
       <div class="settings-title">Settings</div>
       <button class="btn-preset" id="chessPreset">10 min</button>
@@ -169,7 +170,7 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
   render();
 
   return {
-    destroy() { cancelAnimationFrame(rafId); timerMain.innerHTML=''; settingsPanel.innerHTML=''; settingsPanel.style.display='none'; },
+    destroy() { cancelAnimationFrame(rafId); timerMain.innerHTML='';  },
     onSoundModeChange() {}
   };
 }

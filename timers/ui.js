@@ -1,143 +1,130 @@
 /**
- * Tony's Timers — Shared Timer UI Builder
- * Renders the standard ring/countdown panel and wires controls.
- * Each timer module calls buildTimerUI() then customizes as needed.
+ * Tony's Timers — Shared Timer UI Builder v2
+ * - Settings live in the gear drawer (no inline settings panel)
+ * - Big round display readable from the rower
+ * - Workout completion % progress bar
  */
 
-import { TimerEngine, beep, speak, vibrate, formatTime, formatTimeLong,
-         clamp, secondsFromInputs, setTimeInputs,
-         shouldBeep, shouldSpeak, VIB } from '../engine.js';
+import { TimerEngine, beep, speak, vibrate, formatTime,
+         clamp, shouldBeep, shouldSpeak, VIB } from '../engine.js';
 
 export const RING_LENGTH = 339.292;
 
-/**
- * config = {
- *   accent, accentDim,           // CSS color strings
- *   timerMain, settingsPanel,    // DOM containers
- *   soundMode,                   // () => current mode string
- *   setWakeLock,                 // (bool) => void
- *   buildSchedule,               // () => phase[]
- *   renderSettings,              // () => HTML string for settings panel
- *   onSettingsChange,            // () => void  (called when any input changes)
- *   phaseSounds,                 // { [type]: { freq, voice } }
- *   storageKey,                  // string
- *   defaultSettings,             // object
- *   loadSettings,                // (saved) => void
- *   readSettings,                // () => object
- *   presetLabel,                 // string
- *   onPreset,                    // () => void
- *   showPhaseStrip,              // bool (default true)
- *   showSettings,                // bool (default true)
- * }
- */
 export function buildTimerUI(config) {
   const {
     accent, accentDim,
-    timerMain, settingsPanel,
+    timerMain,
+    drawerInputGrid, drawerTitle, drawerPreset,
     soundMode, setWakeLock,
     buildSchedule,
     renderSettings,
     onSettingsChange,
     phaseSounds = {},
     storageKey,
-    defaultSettings,
-    loadSettings: userLoadSettings,
-    readSettings: userReadSettings,
-    presetLabel = 'Default',
+    timerName = 'Timer',
+    presetLabel,
     onPreset,
     showPhaseStrip = true,
-    showSettings = true
   } = config;
 
-  // Apply accent CSS vars
-  timerMain.closest('.timer-shell')?.style.setProperty('--accent', accent);
-  timerMain.closest('.timer-shell')?.style.setProperty('--accent-dim', accentDim);
+  // Apply accent
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
 
-  // ── Render timer panel ──────────────────────────────────────────────────
+  // ── Populate drawer ────────────────────────────────────────────────────────
+  drawerTitle.textContent = timerName + ' Settings';
+
+  if (onPreset && presetLabel) {
+    drawerPreset.style.display = '';
+    drawerPreset.textContent   = presetLabel;
+  } else {
+    drawerPreset.style.display = 'none';
+  }
+
+  drawerInputGrid.innerHTML = renderSettings ? renderSettings() : '';
+
+  // ── Render timer panel ─────────────────────────────────────────────────────
   timerMain.innerHTML = `
     <div class="timer-panel">
       <div class="phase-header">
         <div class="phase-eyebrow" id="phaseEyebrow">Ready</div>
-        <div class="phase-label" id="phaseLabel">—</div>
+        <div class="phase-label"   id="phaseLabel">—</div>
       </div>
 
       <div class="ring-wrap">
         <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
           <circle class="ring-track" cx="60" cy="60" r="54"/>
-          <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="54"/>
+          <circle class="ring-fill"  id="ringFill" cx="60" cy="60" r="54"/>
         </svg>
         <div class="ring-center">
-          <div class="time-display" id="timeDisplay">--:--</div>
-          <div class="round-label" id="roundLabel"></div>
-          <div class="total-label" id="totalLabel"></div>
+          <div class="time-display"  id="timeDisplay">--:--</div>
+          <div class="round-display" id="roundDisplay"></div>
+          <div class="total-label"   id="totalLabel"></div>
+        </div>
+      </div>
+
+      <div class="workout-progress" id="workoutProgress" style="display:none">
+        <div class="progress-row">
+          <span class="progress-pct"   id="progressPct">0%</span>
+          <span class="progress-total" id="progressTotal"></span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
         </div>
       </div>
 
       ${showPhaseStrip ? `<div class="phase-strip" id="phaseStrip"></div>` : '<div></div>'}
 
       <div class="controls">
-        <button class="btn-primary" id="startPauseBtn" type="button">Start</button>
-        <button class="btn-secondary" id="resetBtn" type="button">Reset</button>
+        <button class="btn-primary"   id="startPauseBtn" type="button">Start</button>
+        <button class="btn-secondary" id="resetBtn"      type="button">Reset</button>
       </div>
-    </div>
-  `;
+    </div>`;
 
-  // ── Render settings ─────────────────────────────────────────────────────
-  if (showSettings && renderSettings) {
-    settingsPanel.style.display = '';
-    settingsPanel.innerHTML = `
-      <div class="settings-header">
-        <div class="settings-title">Settings</div>
-        ${onPreset ? `<button class="btn-preset" id="presetBtn" type="button">${presetLabel}</button>` : ''}
-      </div>
-      <div class="input-grid" id="inputGrid">
-        ${renderSettings()}
-      </div>
-    `;
-  }
-
-  // ── Element refs ─────────────────────────────────────────────────────────
+  // ── Element refs ───────────────────────────────────────────────────────────
   const els = {
-    phaseEyebrow: document.getElementById('phaseEyebrow'),
-    phaseLabel:   document.getElementById('phaseLabel'),
-    ringFill:     document.getElementById('ringFill'),
-    timeDisplay:  document.getElementById('timeDisplay'),
-    roundLabel:   document.getElementById('roundLabel'),
-    totalLabel:   document.getElementById('totalLabel'),
-    phaseStrip:   document.getElementById('phaseStrip'),
-    startPause:   document.getElementById('startPauseBtn'),
-    reset:        document.getElementById('resetBtn'),
-    preset:       document.getElementById('presetBtn')
+    phaseEyebrow:   document.getElementById('phaseEyebrow'),
+    phaseLabel:     document.getElementById('phaseLabel'),
+    ringFill:       document.getElementById('ringFill'),
+    timeDisplay:    document.getElementById('timeDisplay'),
+    roundDisplay:   document.getElementById('roundDisplay'),
+    totalLabel:     document.getElementById('totalLabel'),
+    workoutProgress:document.getElementById('workoutProgress'),
+    progressPct:    document.getElementById('progressPct'),
+    progressTotal:  document.getElementById('progressTotal'),
+    progressFill:   document.getElementById('progressFill'),
+    phaseStrip:     document.getElementById('phaseStrip'),
+    startPause:     document.getElementById('startPauseBtn'),
+    reset:          document.getElementById('resetBtn'),
   };
 
-  // ── Storage ──────────────────────────────────────────────────────────────
+  // ── Storage ────────────────────────────────────────────────────────────────
   function saveToStorage() {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(userReadSettings()));
-    } catch { /* ignore */ }
+    try { localStorage.setItem(storageKey, JSON.stringify(config.readSettings())); } catch {}
   }
 
   function loadFromStorage() {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) userLoadSettings(JSON.parse(raw));
+      if (raw && config.loadSettings) config.loadSettings(JSON.parse(raw));
     } catch {
-      try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
+      try { localStorage.removeItem(storageKey); } catch {}
     }
   }
 
-  // ── Engine setup ─────────────────────────────────────────────────────────
+  // Total workout ms (computed once per schedule load)
+  let totalWorkoutMs = 0;
+
+  // ── Engine ─────────────────────────────────────────────────────────────────
   const engine = new TimerEngine({
-    onTick(state) { renderState(state); },
-    onPhase(phase) {
-      const sounds = phaseSounds[phase.type] || {};
-      if (shouldBeep(soundMode())) beep(sounds.freq || 660);
-      if (shouldSpeak(soundMode())) speak(sounds.voice || phase.label);
+    onTick(state)   { renderState(state); },
+    onPhase(phase)  {
+      const s = phaseSounds[phase.type] || {};
+      if (shouldBeep(soundMode())) beep(s.freq || 660);
+      if (shouldSpeak(soundMode())) speak(s.voice || phase.label);
       vibrate(phase.type === 'work' ? VIB.work : VIB.rest);
     },
-    onComplete() {
+    onComplete()    {
       if (shouldBeep(soundMode())) beep(440, 0.25);
       if (shouldSpeak(soundMode())) speak('Complete. Great work!');
       vibrate(VIB.done);
@@ -145,7 +132,7 @@ export function buildTimerUI(config) {
     onWakeLock(active) { setWakeLock(active); }
   });
 
-  // ── Render state ─────────────────────────────────────────────────────────
+  // ── Render state ───────────────────────────────────────────────────────────
   function renderState(state) {
     const { phase, progress, remainingMs, totalRemainingMs,
             isRunning, hasStarted, isComplete,
@@ -157,19 +144,38 @@ export function buildTimerUI(config) {
     // Time
     els.timeDisplay.textContent = formatTime(remainingMs);
 
-    // Phase labels
     if (isComplete) {
       els.phaseEyebrow.textContent = 'Done';
       els.phaseLabel.textContent   = 'Complete!';
-      els.roundLabel.textContent   = 'Workout complete 🔥';
+      els.roundDisplay.textContent = '🔥 Workout Complete';
       els.totalLabel.textContent   = '';
+      if (els.workoutProgress) {
+        els.workoutProgress.style.display = '';
+        els.progressPct.textContent  = '100%';
+        els.progressFill.style.width = '100%';
+        els.progressTotal.textContent = '';
+      }
     } else if (phase) {
       els.phaseEyebrow.textContent = phase.type.toUpperCase();
       els.phaseLabel.textContent   = phase.label;
-      els.roundLabel.textContent   = phase.roundLabel || '';
-      els.totalLabel.textContent   = totalRemainingMs > 0
-        ? `${formatTime(totalRemainingMs)} total remaining`
+
+      // Big round display
+      els.roundDisplay.textContent = phase.roundLabel || '';
+
+      // Total remaining
+      els.totalLabel.textContent = totalRemainingMs > 0
+        ? formatTime(totalRemainingMs) + ' remaining'
         : '';
+
+      // Progress bar
+      if (totalWorkoutMs > 0) {
+        const elapsed  = totalWorkoutMs - totalRemainingMs;
+        const pct      = Math.min(100, Math.round((elapsed / totalWorkoutMs) * 100));
+        els.workoutProgress.style.display = '';
+        els.progressPct.textContent       = pct + '%';
+        els.progressFill.style.width      = pct + '%';
+        els.progressTotal.textContent     = formatTime(totalWorkoutMs) + ' total';
+      }
     }
 
     // Phase strip
@@ -178,12 +184,11 @@ export function buildTimerUI(config) {
       dots.forEach((dot, i) => dot.classList.toggle('active', i <= currentIndex));
     }
 
-    // Button
+    // Button label
     els.startPause.textContent = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
-    els.startPause.style.opacity = '1';
   }
 
-  // ── Phase strip ──────────────────────────────────────────────────────────
+  // ── Phase strip ────────────────────────────────────────────────────────────
   function buildPhaseStrip(schedule) {
     if (!showPhaseStrip || !els.phaseStrip) return;
     els.phaseStrip.innerHTML = schedule
@@ -191,9 +196,10 @@ export function buildTimerUI(config) {
       .join('');
   }
 
-  // ── Load and start ────────────────────────────────────────────────────────
+  // ── Load schedule ──────────────────────────────────────────────────────────
   function reload() {
-    const schedule = buildSchedule();
+    const schedule   = buildSchedule();
+    totalWorkoutMs   = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
     buildPhaseStrip(schedule);
     engine.load(schedule);
     saveToStorage();
@@ -202,36 +208,54 @@ export function buildTimerUI(config) {
   loadFromStorage();
   reload();
 
-  // ── Event listeners ───────────────────────────────────────────────────────
+  // ── Controls ───────────────────────────────────────────────────────────────
   els.startPause.addEventListener('click', () => engine.toggle());
   els.reset.addEventListener('click', () => reload());
-  if (els.preset && onPreset) {
-    els.preset.addEventListener('click', () => { onPreset(); reload(); });
-  }
 
-  // Settings inputs
-  if (showSettings) {
-    settingsPanel.querySelectorAll('input, select').forEach(input => {
-      input.addEventListener('change', () => {
-        if (onSettingsChange) onSettingsChange(input);
-        reload();
-      });
+  // Preset button in drawer
+  if (onPreset) {
+    drawerPreset.addEventListener('click', () => {
+      onPreset();
+      reload();
     });
   }
+
+  // Settings inputs in drawer
+  drawerInputGrid.querySelectorAll('input, select').forEach(input => {
+    input.addEventListener('change', () => {
+      if (onSettingsChange) onSettingsChange(input);
+      reload();
+    });
+  });
+
+  // Re-wire after drawer renders (drawer may have been repopulated)
+  const observer = new MutationObserver(() => {
+    drawerInputGrid.querySelectorAll('input, select').forEach(input => {
+      if (!input.dataset.wired) {
+        input.dataset.wired = '1';
+        input.addEventListener('change', () => {
+          if (onSettingsChange) onSettingsChange(input);
+          reload();
+        });
+      }
+    });
+  });
+  observer.observe(drawerInputGrid, { childList: true, subtree: true });
 
   return {
     destroy() {
       engine.stop();
-      timerMain.innerHTML = '';
-      settingsPanel.innerHTML = '';
-      settingsPanel.style.display = 'none';
+      observer.disconnect();
+      timerMain.innerHTML        = '';
+      drawerInputGrid.innerHTML  = '';
+      drawerPreset.style.display = 'none';
     },
-    onSoundModeChange() { /* soundMode() is reactive */ },
+    onSoundModeChange() {},
     reload
   };
 }
 
-// ── HTML helpers ──────────────────────────────────────────────────────────────
+// ── HTML field helpers ─────────────────────────────────────────────────────────
 export function timeField(id, label, defaultMin = 0, defaultSec = 0) {
   return `
     <label class="field-label">

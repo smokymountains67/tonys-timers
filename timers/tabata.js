@@ -23,7 +23,7 @@ export async function init(ctx) {
   }
 
   return buildTimerUI({
-    accent: '#ff8c42', accentDim: 'rgba(255,140,66,0.15)',
+    accent: '#ff8c42', timerName: 'Tabata', accentDim: 'rgba(255,140,66,0.15)',
     ...ctx,
     buildSchedule,
     renderSettings: () =>

@@ -26,7 +26,7 @@ export async function init(ctx) {
   }
 
   return buildTimerUI({
-    accent: '#e05c3a', accentDim: 'rgba(224,92,58,0.15)',
+    accent: '#e05c3a', timerName: 'Pomodoro', accentDim: 'rgba(224,92,58,0.15)',
     ...ctx,
     buildSchedule,
     renderSettings: () =>

@@ -3,8 +3,9 @@ import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTimeLong, vibrate, V
 const RING_LENGTH = 339.292;
 const KEY = 'tonys-fasting-state';
 
-export async function init({ timerMain, settingsPanel, soundMode, setWakeLock }) {
+export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#14b8a6';
+  drawerTitle.textContent = 'Fasting Settings';
   const accentDim = 'rgba(20,184,166,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -33,8 +34,8 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
       </div>
     </div>`;
 
-  settingsPanel.style.display = '';
-  settingsPanel.innerHTML = `
+  
+  drawerInputGrid.innerHTML = `
     <div class="settings-header">
       <div class="settings-title">Fast Type</div>
     </div>
@@ -170,7 +171,7 @@ export async function init({ timerMain, settingsPanel, soundMode, setWakeLock })
     destroy() {
       cancelAnimationFrame(rafId);
       timerMain.innerHTML = '';
-      settingsPanel.innerHTML = '';
+      drawerInputGrid.innerHTML = '';
       settingsPanel.style.display = 'none';
     },
     onSoundModeChange() {}

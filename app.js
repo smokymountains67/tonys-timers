@@ -116,11 +116,116 @@ if (location.hash && location.hash.length > 1) {
   openTimer(location.hash.slice(1));
 }
 
-// ── Timer grid clicks ─────────────────────────────────────────────────────────
-document.getElementById('timerGrid').addEventListener('click', (e) => {
+// ── Timer grid: open, reorder, persist ────────────────────────────────────────
+const timerGrid = document.getElementById('timerGrid');
+const editBtn   = document.getElementById('editBtn');
+const ORDER_KEY = 'tonys-timers-order';
+let editMode    = false;
+let justDragged = false;
+
+function applyOrder() {
+  try {
+    const order = JSON.parse(localStorage.getItem(ORDER_KEY));
+    if (!Array.isArray(order)) return;
+    const cards = [...timerGrid.children];
+    const byId  = new Map(cards.map(c => [c.dataset.timer, c]));
+    const seen  = new Set();
+    const frag  = document.createDocumentFragment();
+    order.forEach(id => {
+      const c = byId.get(id);
+      if (c) { frag.appendChild(c); seen.add(id); }
+    });
+    cards.forEach(c => { if (!seen.has(c.dataset.timer)) frag.appendChild(c); });
+    timerGrid.appendChild(frag);
+  } catch { /* corrupt order — ignore */ }
+}
+
+function saveOrder() {
+  try {
+    const order = [...timerGrid.children].map(c => c.dataset.timer);
+    localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+  } catch { /* storage unavailable */ }
+}
+
+applyOrder();
+
+editBtn.addEventListener('click', () => {
+  editMode = !editMode;
+  timerGrid.classList.toggle('edit-mode', editMode);
+  editBtn.textContent = editMode ? 'Done' : 'Edit Layout';
+  editBtn.classList.toggle('editing', editMode);
+});
+
+timerGrid.addEventListener('click', (e) => {
+  if (editMode || justDragged) { justDragged = false; return; }
   const card = e.target.closest('.timer-card');
   if (card) openTimer(card.dataset.timer);
 });
+
+// ── Drag to reorder (pointer events — works for touch and mouse) ─────────────
+let dragCard = null, dragStartX = 0, dragStartY = 0, dragging = false;
+
+timerGrid.addEventListener('pointerdown', (e) => {
+  if (!editMode) return;
+  const card = e.target.closest('.timer-card');
+  if (!card) return;
+  dragCard   = card;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragging   = false;
+  card.setPointerCapture(e.pointerId);
+});
+
+timerGrid.addEventListener('pointermove', (e) => {
+  if (!dragCard) return;
+  let dx = e.clientX - dragStartX;
+  let dy = e.clientY - dragStartY;
+
+  if (!dragging && Math.hypot(dx, dy) > 8) {
+    dragging = true;
+    dragCard.classList.add('dragging');
+    dragCard.style.pointerEvents = 'none'; // lets elementFromPoint see beneath
+  }
+  if (!dragging) return;
+
+  dragCard.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
+
+  const under  = document.elementFromPoint(e.clientX, e.clientY);
+  const target = under?.closest('.timer-card');
+  if (target && target !== dragCard && target.parentElement === timerGrid) {
+    const before = dragCard.getBoundingClientRect();
+    const cards  = [...timerGrid.children];
+    const from   = cards.indexOf(dragCard);
+    const to     = cards.indexOf(target);
+    if (from < to) target.after(dragCard);
+    else           target.before(dragCard);
+    const after  = dragCard.getBoundingClientRect();
+
+    // The layout slot moved — shift the anchor by the same delta so the
+    // card stays glued to the finger
+    dragStartX += after.left - before.left;
+    dragStartY += after.top  - before.top;
+    dx = e.clientX - dragStartX;
+    dy = e.clientY - dragStartY;
+    dragCard.style.transform = `translate(${dx}px, ${dy}px) scale(1.05)`;
+  }
+});
+
+function endDrag() {
+  if (!dragCard) return;
+  if (dragging) {
+    saveOrder();
+    justDragged = true;
+  }
+  dragCard.classList.remove('dragging');
+  dragCard.style.transform = '';
+  dragCard.style.pointerEvents = '';
+  dragCard = null;
+  dragging = false;
+}
+
+timerGrid.addEventListener('pointerup', endDrag);
+timerGrid.addEventListener('pointercancel', endDrag);
 
 // ── Install prompt ────────────────────────────────────────────────────────────
 window.addEventListener('beforeinstallprompt', (e) => {

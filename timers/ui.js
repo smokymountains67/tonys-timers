@@ -267,7 +267,7 @@ export function buildTimerUI(config) {
 
   return {
     destroy() {
-      engine.stop();
+      engine.destroy();
       observer.disconnect();
       timerMain.innerHTML        = '';
       drawerInputGrid.innerHTML  = '';

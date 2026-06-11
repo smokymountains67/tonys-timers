@@ -64,6 +64,50 @@ p, h1, h2, h3 { margin: 0; }
   margin-top: 4px;
 }
 
+.edit-btn {
+  margin-top: 12px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: border-color 150ms, color 150ms;
+}
+
+.edit-btn.editing {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Edit mode: cards wiggle gently and become draggable */
+@keyframes card-wiggle {
+  0%   { transform: rotate(-0.6deg); }
+  50%  { transform: rotate(0.6deg); }
+  100% { transform: rotate(-0.6deg); }
+}
+
+.timer-grid.edit-mode .timer-card {
+  animation: card-wiggle 0.4s ease-in-out infinite;
+  touch-action: none;       /* stop the browser stealing drags for scroll */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.timer-grid.edit-mode .timer-card.dragging {
+  animation: none;
+  transition: none;
+  cursor: grabbing;
+  z-index: 50;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  border-color: var(--accent);
+  opacity: 0.95;
+}
+
 .timer-grid {
   padding: 20px;
   display: grid;

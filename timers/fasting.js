@@ -5,10 +5,11 @@ const KEY = 'tonys-fasting-state';
 
 export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#14b8a6';
-  drawerTitle.textContent = 'Fasting Settings';
   const accentDim = 'rgba(20,184,166,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
+  drawerTitle.textContent = 'Fasting Settings';
+  drawerPreset.style.display = 'none';
 
   timerMain.innerHTML = `
     <div class="timer-panel">
@@ -22,9 +23,9 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
           <circle class="ring-fill" id="fastRing" cx="60" cy="60" r="54" style="stroke:${accent}"/>
         </svg>
         <div class="ring-center">
-          <div class="time-display" id="fastTime">00:00:00</div>
-          <div class="round-label" id="fastStatus">Set your fast duration</div>
-          <div class="total-label" id="fastTarget"></div>
+          <div class="time-display" id="fastTime" style="font-size:clamp(2.4rem,12vw,4rem)">00:00:00</div>
+          <div class="info-key" id="fastStatus" style="margin-top:4px">Set your fast duration</div>
+          <div class="info-key" id="fastTarget" style="opacity:0.6"></div>
         </div>
       </div>
       <div></div>
@@ -34,128 +35,120 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
       </div>
     </div>`;
 
-  
   drawerInputGrid.innerHTML = `
-    <div class="settings-header">
-      <div class="settings-title">Fast Type</div>
-    </div>
-    <div class="input-grid">
-      <label class="field-label"><span>Protocol</span>
-        <select class="field-input" id="fastProtocol">
-          <option value="16">16:8 (16hr fast)</option>
-          <option value="18">18:6 (18hr fast)</option>
-          <option value="20">20:4 (20hr fast)</option>
-          <option value="24">24hr fast</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-      <label class="field-label" id="fastCustomRow" style="display:none"><span>Custom hours</span>
-        <input class="field-input" id="fastCustomHrs" type="number" min="1" max="72" value="16" inputmode="numeric">
-      </label>
-    </div>`;
+    <label class="field-label"><span>Protocol</span>
+      <select class="field-input" id="fastProtocol">
+        <option value="16">16:8 (16hr fast)</option>
+        <option value="18">18:6 (18hr fast)</option>
+        <option value="20">20:4 (20hr fast)</option>
+        <option value="24">24hr fast</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <label class="field-label" id="fastCustomRow" style="display:none"><span>Custom hours</span>
+      <input class="field-input" id="fastCustomHrs" type="number" min="1" max="72" value="16" inputmode="numeric">
+    </label>`;
 
   const els = {
-    label:    document.getElementById('fastLabel'),
-    ring:     document.getElementById('fastRing'),
-    time:     document.getElementById('fastTime'),
-    status:   document.getElementById('fastStatus'),
-    target:   document.getElementById('fastTarget'),
-    start:    document.getElementById('fastStart'),
-    reset:    document.getElementById('fastReset'),
-    protocol: document.getElementById('fastProtocol'),
-    customRow:document.getElementById('fastCustomRow'),
-    customHrs:document.getElementById('fastCustomHrs')
+    label:     document.getElementById('fastLabel'),
+    ring:      document.getElementById('fastRing'),
+    time:      document.getElementById('fastTime'),
+    status:    document.getElementById('fastStatus'),
+    target:    document.getElementById('fastTarget'),
+    start:     document.getElementById('fastStart'),
+    reset:     document.getElementById('fastReset'),
+    protocol:  document.getElementById('fastProtocol'),
+    customRow: document.getElementById('fastCustomRow'),
+    customHrs: document.getElementById('fastCustomHrs')
   };
 
-  let isRunning = false, fastStartTime = 0, durationMs = 0, rafId = 0;
+  // Wall-clock state — survives page reloads via localStorage
+  let fastStartTime = 0;
+  let durationMs    = 0;
+  let completed     = false;
+  let intervalId    = 0;
 
-  // Try restore state
-  const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; } })();
-  if (saved?.fastStartTime && saved?.durationMs) {
-    fastStartTime = saved.fastStartTime;
-    durationMs    = saved.durationMs;
-    const elapsed = Date.now() - fastStartTime;
-    if (elapsed < durationMs) {
-      isRunning = true;
-      startTick();
+  // Restore an in-progress fast
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (saved?.fastStartTime && saved?.durationMs) {
+      fastStartTime = saved.fastStartTime;
+      durationMs    = saved.durationMs;
     }
-  }
+  } catch {}
+
+  const isActive = () => fastStartTime > 0 && !completed;
 
   function getTargetMs() {
-    const p = els.protocol.value;
+    const p   = els.protocol.value;
     const hrs = p === 'custom' ? clamp(els.customHrs.value, 1, 72) : Number(p);
-    return hrs * 3600 * 1000;
+    return hrs * 3600000;
   }
 
   function render() {
-    const elapsed     = isRunning ? Date.now() - fastStartTime : 0;
-    const remaining   = Math.max(0, durationMs - elapsed);
-    const progress    = durationMs > 0 ? Math.min(1, elapsed / durationMs) : 0;
+    const elapsed   = fastStartTime > 0 ? Date.now() - fastStartTime : 0;
+    const remaining = Math.max(0, durationMs - elapsed);
+    const progress  = durationMs > 0 ? Math.min(1, elapsed / durationMs) : 0;
 
     els.ring.style.strokeDashoffset = RING_LENGTH * (1 - progress);
-    els.time.textContent = formatTimeLong(elapsed);
+    els.time.textContent = formatTimeLong(Math.min(elapsed, durationMs || elapsed));
 
-    if (!isRunning && elapsed === 0) {
+    if (fastStartTime === 0) {
       els.label.textContent  = 'Ready to Fast';
       els.status.textContent = 'Set your protocol and start';
       els.target.textContent = '';
+      els.start.textContent  = 'Start Fast';
     } else if (remaining > 0) {
       const pct = Math.round(progress * 100);
       els.label.textContent  = `${pct}% Complete`;
       els.status.textContent = `${formatTimeLong(remaining)} remaining`;
       els.target.textContent = `Target: ${formatTimeLong(durationMs)}`;
+      els.start.textContent  = 'Fasting...';
     } else {
       els.label.textContent  = 'Fast Complete!';
-      els.status.textContent = `You fasted for ${formatTimeLong(durationMs)} 🎉`;
+      els.status.textContent = `You fasted ${formatTimeLong(durationMs)} 🎉`;
       els.target.textContent = '';
+      els.start.textContent  = 'Start New Fast';
     }
-
-    els.start.textContent = isRunning ? 'Pause Fast' : elapsed > 0 ? 'Resume' : 'Start Fast';
   }
 
-  function saveFastState() {
-    try { localStorage.setItem(KEY, JSON.stringify({ fastStartTime, durationMs })); } catch {}
-  }
-
-  function startTick() {
-    cancelAnimationFrame(rafId);
-    function tick() {
-      render();
-      const elapsed = Date.now() - fastStartTime;
-      if (elapsed >= durationMs) {
-        isRunning = false;
-        if (shouldBeep(soundMode())) beep(528, 1.0, 0.2);
-        if (shouldSpeak(soundMode())) speak('Fast complete! Great discipline!');
-        vibrate(VIB.done);
-        setWakeLock(false);
-        return;
-      }
-      rafId = requestAnimationFrame(tick);
+  function checkComplete() {
+    if (!isActive()) return;
+    if (Date.now() - fastStartTime >= durationMs) {
+      completed = true;
+      if (shouldBeep(soundMode())) beep(528, 1.0, 0.2);
+      if (shouldSpeak(soundMode())) speak('Fast complete! Great discipline!');
+      vibrate(VIB.done);
+      try { localStorage.removeItem(KEY); } catch {}
     }
-    rafId = requestAnimationFrame(tick);
   }
+
+  function startLoop() {
+    clearInterval(intervalId);
+    // 1-second heartbeat is plenty for an hours-long timer, and it
+    // recomputes from wall clock so background gaps are harmless
+    intervalId = setInterval(() => { render(); checkComplete(); }, 1000);
+  }
+
+  const onVis = () => {
+    if (document.visibilityState === 'visible') { render(); checkComplete(); }
+  };
+  document.addEventListener('visibilitychange', onVis);
 
   els.start.addEventListener('click', () => {
-    if (isRunning) {
-      // Just pause display, keep wall-clock running (fasting continues)
-      isRunning = false;
-      cancelAnimationFrame(rafId);
-      render();
-    } else {
-      durationMs    = getTargetMs();
-      fastStartTime = Date.now();
-      isRunning     = true;
-      saveFastState();
-      if (shouldSpeak(soundMode())) speak('Fast started. Stay strong!');
-      startTick();
-    }
+    if (isActive()) return; // a fast is running — use Reset to abandon
+    completed     = false;
+    durationMs    = getTargetMs();
+    fastStartTime = Date.now();
+    try { localStorage.setItem(KEY, JSON.stringify({ fastStartTime, durationMs })); } catch {}
+    if (shouldSpeak(soundMode())) speak('Fast started. Stay strong!');
+    startLoop();
+    render();
   });
 
   els.reset.addEventListener('click', () => {
-    isRunning     = false;
-    fastStartTime = 0;
-    durationMs    = 0;
-    cancelAnimationFrame(rafId);
+    fastStartTime = 0; durationMs = 0; completed = false;
+    clearInterval(intervalId);
     try { localStorage.removeItem(KEY); } catch {}
     render();
   });
@@ -165,14 +158,16 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
     render();
   });
 
+  if (isActive()) startLoop();
   render();
+  checkComplete();
 
   return {
     destroy() {
-      cancelAnimationFrame(rafId);
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVis);
       timerMain.innerHTML = '';
       drawerInputGrid.innerHTML = '';
-      settingsPanel.style.display = 'none';
     },
     onSoundModeChange() {}
   };

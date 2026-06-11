@@ -1,4 +1,5 @@
-import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTime, vibrate, VIB } from '../engine.js';
+import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
+         formatTime, vibrate, VIB } from '../engine.js';
 
 const RING_LENGTH = 339.292;
 
@@ -15,12 +16,12 @@ const INTENTIONS = [
 
 export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPreset, soundMode, setWakeLock }) {
   const accent    = '#d4a517';
-  drawerTitle.textContent = 'Prayer Settings';
   const accentDim = 'rgba(212,165,23,0.15)';
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
-
-  const intention = INTENTIONS[Math.floor(Math.random() * INTENTIONS.length)];
+  drawerTitle.textContent = 'Prayer Settings';
+  drawerPreset.style.display = '';
+  drawerPreset.textContent = '10 min';
 
   timerMain.innerHTML = `
     <div class="timer-panel">
@@ -35,48 +36,39 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
         </svg>
         <div class="ring-center">
           <div class="time-display" id="prayTime">--:--</div>
-          <div class="round-label" id="prayStatus">Ready</div>
+          <div class="info-key" id="prayStatus" style="margin-top:4px">Ready</div>
         </div>
       </div>
-      <div class="prayer-intention" id="prayIntention" style="
+      <div id="prayIntention" style="
         text-align:center; color:var(--muted); font-style:italic;
         font-size:0.85rem; line-height:1.6; padding:0 8px;
-      ">${intention}</div>
+      "></div>
       <div class="controls">
         <button class="btn-primary" id="prayStart" type="button" style="background:${accent};color:#1a1000">Begin</button>
         <button class="btn-secondary" id="prayReset" type="button">Reset</button>
       </div>
     </div>`;
 
-  
   drawerInputGrid.innerHTML = `
-    <div class="settings-header">
-      <div class="settings-title">Settings</div>
-      <button class="btn-preset" id="prayPreset">10 min</button>
-    </div>
-    <div class="input-grid">
-      <label class="field-label"><span>Duration (minutes)</span>
-        <input class="field-input" id="prayDur" type="number" min="1" max="60" value="10" inputmode="numeric">
-      </label>
-      <label class="field-label"><span>Gentle bell every (minutes, 0 = off)</span>
-        <input class="field-input" id="prayBell" type="number" min="0" max="15" value="5" inputmode="numeric">
-      </label>
-    </div>`;
+    <label class="field-label"><span>Duration (minutes)</span>
+      <input class="field-input" id="prayDur" type="number" min="1" max="60" value="10" inputmode="numeric">
+    </label>
+    <label class="field-label"><span>Gentle bell every (minutes, 0 = off)</span>
+      <input class="field-input" id="prayBell" type="number" min="0" max="15" value="5" inputmode="numeric">
+    </label>`;
 
   const els = {
-    label:  document.getElementById('prayLabel'),
-    ring:   document.getElementById('prayRing'),
-    time:   document.getElementById('prayTime'),
-    status: document.getElementById('prayStatus'),
-    start:  document.getElementById('prayStart'),
-    reset:  document.getElementById('prayReset'),
-    dur:    document.getElementById('prayDur'),
-    bell:   document.getElementById('prayBell'),
-    preset: document.getElementById('prayPreset')
+    ring:      document.getElementById('prayRing'),
+    time:      document.getElementById('prayTime'),
+    status:    document.getElementById('prayStatus'),
+    intention: document.getElementById('prayIntention'),
+    start:     document.getElementById('prayStart'),
+    reset:     document.getElementById('prayReset'),
+    dur:       document.getElementById('prayDur'),
+    bell:      document.getElementById('prayBell')
   };
 
-  let isRunning=false, startedAt=0, pausedAt=0, durationMs=0, rafId=0;
-  let nextBellAt=0, bellIntervalMs=0, wakeLock=null;
+  let lastBell = 0;
 
   function softBell() {
     if (shouldBeep(soundMode())) {
@@ -86,83 +78,59 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
     vibrate(VIB.bell);
   }
 
-  function getDur()  { return Math.max(60, clamp(els.dur.value,1,60)*60)*1000; }
-  function getBell() { return clamp(els.bell.value,0,15)*60*1000; }
+  const engine = new TimerEngine({
+    onTick(state) {
+      els.ring.style.strokeDashoffset = RING_LENGTH * (1 - state.progress);
+      els.time.textContent = formatTime(state.remainingMs);
+      els.status.textContent = state.isComplete ? 'Amen'
+        : state.isRunning ? 'Praying...'
+        : state.hasStarted ? 'Paused' : 'Ready';
+      els.start.textContent = state.isRunning ? 'Pause'
+        : state.hasStarted && !state.isComplete ? 'Resume' : 'Begin';
 
-  function render(remainingMs) {
-    const progress = durationMs > 0 ? remainingMs/durationMs : 1;
-    els.ring.style.strokeDashoffset = RING_LENGTH*(1-progress);
-    els.time.textContent  = formatTime(remainingMs);
-    els.status.textContent = isRunning ? 'Praying...' : remainingMs<durationMs ? 'Paused' : 'Ready';
-    els.start.textContent  = isRunning ? 'Pause' : remainingMs<durationMs ? 'Resume' : 'Begin';
-  }
-
-  async function requestWL() {
-    if (!('wakeLock' in navigator)) return;
-    try { wakeLock = await navigator.wakeLock.request('screen'); setWakeLock(true); } catch {}
-  }
-  function releaseWL() {
-    if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock=null; }
-    setWakeLock(false);
-  }
-
-  function tick(now) {
-    const elapsed     = now - startedAt;
-    const remainingMs = Math.max(0, durationMs - elapsed);
-    render(remainingMs);
-    if (bellIntervalMs > 0 && now >= nextBellAt) { softBell(); nextBellAt += bellIntervalMs; }
-    if (remainingMs <= 0) {
-      isRunning = false;
+      const intervalMs = clamp(els.bell.value, 0, 15) * 60000;
+      if (intervalMs > 0 && state.isRunning) {
+        const elapsed = state.durationMs - state.remainingMs;
+        const count   = Math.floor(elapsed / intervalMs);
+        if (count > lastBell) { lastBell = count; softBell(); }
+      }
+    },
+    onComplete() {
       softBell();
       if (shouldSpeak(soundMode())) speak('Amen. Prayer time complete.');
       vibrate(VIB.done);
-      releaseWL();
-      return;
-    }
-    rafId = requestAnimationFrame(tick);
+    },
+    onWakeLock(active) { setWakeLock(active); }
+  });
+
+  function rotateIntention() {
+    els.intention.textContent = INTENTIONS[Math.floor(Math.random() * INTENTIONS.length)];
   }
 
-  function start() {
-    durationMs     = getDur();
-    bellIntervalMs = getBell();
-    isRunning      = true;
-    const elapsed  = pausedAt > 0 ? pausedAt : 0;
-    startedAt      = performance.now() - elapsed;
-    pausedAt       = 0;
-    if (bellIntervalMs>0) nextBellAt = startedAt + bellIntervalMs;
-    if (shouldSpeak(soundMode())) speak('Begin your prayer.');
-    requestWL();
-    rafId = requestAnimationFrame(tick);
+  function reload() {
+    lastBell = 0;
+    rotateIntention();
+    const secs = Math.max(60, clamp(els.dur.value, 1, 60) * 60);
+    engine.load([{ type: 'pray', label: 'Be Still', seconds: secs }]);
   }
 
-  function pause() {
-    isRunning = false;
-    cancelAnimationFrame(rafId);
-    pausedAt = performance.now()-startedAt;
-    releaseWL();
-    render(Math.max(0,durationMs-pausedAt));
-  }
+  els.start.addEventListener('click', () => {
+    if (!engine.isRunning && shouldSpeak(soundMode()) && !engine.elapsedMs) speak('Begin your prayer.');
+    engine.toggle();
+  });
+  els.reset.addEventListener('click', reload);
+  drawerPreset.addEventListener('click', () => { els.dur.value = 10; els.bell.value = 5; reload(); });
+  [els.dur, els.bell].forEach(el => el.addEventListener('change', reload));
 
-  function reset() {
-    isRunning=false; cancelAnimationFrame(rafId);
-    pausedAt=0; startedAt=0;
-    durationMs=getDur();
-    releaseWL();
-    // Rotate intention
-    const el = document.getElementById('prayIntention');
-    if (el) el.textContent = INTENTIONS[Math.floor(Math.random()*INTENTIONS.length)];
-    render(durationMs);
-  }
-
-  els.start.addEventListener('click', () => { if(isRunning) pause(); else start(); });
-  els.reset.addEventListener('click', reset);
-  els.preset.addEventListener('click', () => { els.dur.value=10; els.bell.value=5; reset(); });
-  [els.dur,els.bell].forEach(el => el.addEventListener('change', reset));
-
-  reset();
+  reload();
 
   return {
-    destroy() { cancelAnimationFrame(rafId); releaseWL(); timerMain.innerHTML='';  },
+    destroy() {
+      engine.destroy();
+      timerMain.innerHTML = '';
+      drawerInputGrid.innerHTML = '';
+      drawerPreset.style.display = 'none';
+    },
     onSoundModeChange() {}
   };
 }

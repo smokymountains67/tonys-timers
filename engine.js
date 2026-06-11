@@ -98,6 +98,27 @@ export class TimerEngine {
     else this.start();
   }
 
+  // Jump to the start of a given phase index (index === schedule.length → complete)
+  seekToIndex(i) {
+    if (!this.schedule.length) return;
+    i = Math.max(0, Math.min(i, this.schedule.length));
+    const target = i >= this.schedule.length ? this.totalMs : this.boundaries[i];
+    this.lastIndex = Math.min(i, this.schedule.length - 1);
+    if (this.isRunning) {
+      this.anchorTime = Date.now() - target;
+      this._sync();
+    } else {
+      this.elapsedMs = target;
+      this.onTick(this._state());
+    }
+  }
+
+  // Full teardown — call when leaving a timer screen
+  destroy() {
+    this.stop();
+    document.removeEventListener('visibilitychange', this._onVisibility);
+  }
+
   // ── Internal: tick loops ─────────────────────────────────────────────────
   _startLoops() {
     this._stopLoops();

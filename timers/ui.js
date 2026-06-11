@@ -1,9 +1,8 @@
 /**
- * Tony's Timers — Shared Timer UI Builder v3
- * - Phase-specific ring/dot colors (prep=yellow, work=red, rest=green, done=blue)
- * - Round + total time as info blocks BELOW the controls
- * - Big % complete below the buttons
- * - Clean ring center — just the countdown time
+ * Tony's Timers — Shared Timer UI Builder v4 (visual pass)
+ * - Stopwatch-bezel ring with tick marks + glow (ringMarkup shared export)
+ * - Phase pulse animation on transitions
+ * - Completion celebration overlay with workout summary
  */
 
 import { TimerEngine, beep, speak, vibrate, formatTime,
@@ -11,13 +10,63 @@ import { TimerEngine, beep, speak, vibrate, formatTime,
 
 export const RING_LENGTH = 339.292;
 
-// Phase color map
 const PHASE_COLORS = {
   prep: '#f4c84a',
   work: '#ff5a4f',
   rest: '#28c98b',
   done: '#78a6ff'
 };
+
+// ── Shared ring markup with stopwatch tick bezel ──────────────────────────────
+function ringTicks() {
+  let out = '';
+  for (let i = 0; i < 60; i++) {
+    const a     = i * 6 * Math.PI / 180;
+    const major = i % 5 === 0;
+    const r1    = major ? 44 : 46.5;
+    const r2    = 49;
+    const x1 = (60 + r1 * Math.sin(a)).toFixed(2);
+    const y1 = (60 - r1 * Math.cos(a)).toFixed(2);
+    const x2 = (60 + r2 * Math.sin(a)).toFixed(2);
+    const y2 = (60 - r2 * Math.cos(a)).toFixed(2);
+    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="ring-tick${major ? ' major' : ''}"/>`;
+  }
+  return out;
+}
+
+export function ringMarkup(fillId, color = '') {
+  const style = color
+    ? ` style="stroke:${color};filter:drop-shadow(0 0 6px ${color}66)"`
+    : '';
+  return `
+    <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
+      ${ringTicks()}
+      <circle class="ring-track" cx="60" cy="60" r="54"/>
+      <circle class="ring-fill" id="${fillId}" cx="60" cy="60" r="54"${style}/>
+    </svg>`;
+}
+
+// ── Completion overlay ─────────────────────────────────────────────────────────
+function buildCompleteOverlay() {
+  const el = document.createElement('div');
+  el.className = 'complete-overlay';
+  el.innerHTML = `
+    <div class="complete-flash"></div>
+    <div class="complete-card">
+      <div class="complete-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>
+      </div>
+      <div class="complete-title">Complete!</div>
+      <div class="complete-stats">
+        <div><span class="c-time">--:--</span><label>Total Time</label></div>
+        <div><span class="c-rounds">—</span><label>Rounds</label></div>
+      </div>
+      <button class="complete-done-btn" type="button">Done</button>
+    </div>`;
+  document.body.appendChild(el);
+  return el;
+}
 
 export function buildTimerUI(config) {
   const {
@@ -36,11 +85,10 @@ export function buildTimerUI(config) {
     showPhaseStrip = true,
   } = config;
 
-  // Apply default accent for home screen glow
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
 
-  // ── Populate drawer ────────────────────────────────────────────────────────
+  // ── Drawer ─────────────────────────────────────────────────────────────────
   drawerTitle.textContent = timerName + ' Settings';
 
   if (onPreset && presetLabel) {
@@ -52,61 +100,53 @@ export function buildTimerUI(config) {
 
   drawerInputGrid.innerHTML = renderSettings ? renderSettings() : '';
 
-  // ── Render timer panel ─────────────────────────────────────────────────────
+  // ── Timer panel ────────────────────────────────────────────────────────────
   timerMain.innerHTML = `
     <div class="timer-panel">
-
-      <!-- Phase label at top -->
       <div class="phase-header">
         <div class="phase-eyebrow" id="phaseEyebrow">Ready</div>
         <div class="phase-label"   id="phaseLabel">—</div>
       </div>
 
-      <!-- Ring — just the time inside, nothing else -->
-      <div class="ring-wrap">
-        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle class="ring-track" cx="60" cy="60" r="54"/>
-          <circle class="ring-fill"  id="ringFill" cx="60" cy="60" r="54"/>
-        </svg>
+      <div class="ring-wrap" id="ringWrap">
+        ${ringMarkup('ringFill')}
         <div class="ring-center">
           <div class="time-display" id="timeDisplay">--:--</div>
         </div>
       </div>
 
-      <!-- Phase dots strip -->
       ${showPhaseStrip ? `<div class="phase-strip" id="phaseStrip"></div>` : '<div></div>'}
 
-      <!-- Controls -->
       <div class="controls">
         <button class="btn-primary"   id="startPauseBtn" type="button">Start</button>
         <button class="btn-secondary" id="resetBtn"      type="button">Reset</button>
       </div>
 
-      <!-- Info blocks below controls -->
       <div class="info-blocks" id="infoBlocks" style="display:none">
         <div class="info-block">
           <div class="info-value" id="roundDisplay">—</div>
           <div class="info-key">Round</div>
         </div>
-        <div class="info-block info-block-center">
+        <div class="info-block">
           <div class="info-pct" id="progressPct">0%</div>
           <div class="info-key">Complete</div>
           <div class="progress-track" style="margin-top:6px">
             <div class="progress-fill" id="progressFill" style="width:0%"></div>
           </div>
         </div>
-        <div class="info-block info-block-right">
+        <div class="info-block">
           <div class="info-value" id="totalLabel">—</div>
           <div class="info-key">Remaining</div>
         </div>
       </div>
-
     </div>`;
 
-  // ── Element refs ───────────────────────────────────────────────────────────
+  const overlay = buildCompleteOverlay();
+
   const els = {
     phaseEyebrow: document.getElementById('phaseEyebrow'),
     phaseLabel:   document.getElementById('phaseLabel'),
+    ringWrap:     document.getElementById('ringWrap'),
     ringFill:     document.getElementById('ringFill'),
     timeDisplay:  document.getElementById('timeDisplay'),
     phaseStrip:   document.getElementById('phaseStrip'),
@@ -117,6 +157,9 @@ export function buildTimerUI(config) {
     progressPct:  document.getElementById('progressPct'),
     progressFill: document.getElementById('progressFill'),
     totalLabel:   document.getElementById('totalLabel'),
+    cTime:        overlay.querySelector('.c-time'),
+    cRounds:      overlay.querySelector('.c-rounds'),
+    cDone:        overlay.querySelector('.complete-done-btn'),
   };
 
   // ── Storage ────────────────────────────────────────────────────────────────
@@ -134,6 +177,7 @@ export function buildTimerUI(config) {
   }
 
   let totalWorkoutMs = 0;
+  let workRounds     = 0;
 
   // ── Engine ─────────────────────────────────────────────────────────────────
   const engine = new TimerEngine({
@@ -143,33 +187,38 @@ export function buildTimerUI(config) {
       if (shouldBeep(soundMode())) beep(s.freq || 660);
       if (shouldSpeak(soundMode())) speak(s.voice || phase.label);
       vibrate(phase.type === 'work' ? VIB.work : VIB.rest);
+      // Pulse the ring on every phase change
+      els.ringWrap.classList.remove('pulse');
+      void els.ringWrap.offsetWidth;
+      els.ringWrap.classList.add('pulse');
     },
     onComplete() {
       if (shouldBeep(soundMode())) beep(440, 0.25);
       if (shouldSpeak(soundMode())) speak('Complete. Great work!');
       vibrate(VIB.done);
+      // Celebration
+      els.cTime.textContent   = formatTime(totalWorkoutMs);
+      els.cRounds.textContent = workRounds || engine.schedule.length;
+      overlay.classList.add('show');
     },
     onWakeLock(active) { setWakeLock(active); }
   });
 
-  // ── Render state ───────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   function renderState(state) {
     const { phase, progress, remainingMs, totalRemainingMs,
             isRunning, hasStarted, isComplete, currentIndex } = state;
 
-    // ── Phase color ──────────────────────────────────────────────────────────
     const phaseType  = isComplete ? 'done' : (phase?.type || 'prep');
     const phaseColor = PHASE_COLORS[phaseType] || accent;
 
-    // Ring color + progress
     els.ringFill.style.stroke = phaseColor;
+    els.ringFill.style.filter = `drop-shadow(0 0 6px ${phaseColor}66)`;
     els.ringFill.style.strokeDashoffset = RING_LENGTH * (1 - progress);
 
-    // Time
     els.timeDisplay.textContent = formatTime(remainingMs);
     els.timeDisplay.style.color = phaseColor;
 
-    // Phase labels
     if (isComplete) {
       els.phaseEyebrow.textContent = 'Done';
       els.phaseEyebrow.style.color = phaseColor;
@@ -180,43 +229,32 @@ export function buildTimerUI(config) {
       els.phaseLabel.textContent   = phase.label;
     }
 
-    // Phase strip dots — each keeps its own type color
     if (showPhaseStrip && els.phaseStrip) {
       const dots = els.phaseStrip.querySelectorAll('.phase-dot');
       dots.forEach((dot, i) => dot.classList.toggle('active', i <= currentIndex));
     }
 
-    // Info blocks below controls
     if (totalWorkoutMs > 0 || isComplete) {
       els.infoBlocks.style.display = '';
+      els.roundDisplay.textContent = isComplete ? 'Done' : (phase?.roundLabel || '—');
 
-      // Round
-      els.roundDisplay.textContent = isComplete
-        ? '🔥 Done'
-        : (phase?.roundLabel || '—');
-
-      // Progress %
       const elapsed = Math.max(0, totalWorkoutMs - totalRemainingMs);
       const pct     = isComplete ? 100 : Math.min(99, Math.round((elapsed / totalWorkoutMs) * 100));
       els.progressPct.textContent       = pct + '%';
+      els.progressPct.style.color       = phaseColor;
       els.progressFill.style.width      = pct + '%';
       els.progressFill.style.background = phaseColor;
 
-      // Time remaining
-      els.totalLabel.textContent = isComplete
-        ? '0:00'
-        : formatTime(totalRemainingMs);
+      els.totalLabel.textContent = isComplete ? '0:00' : formatTime(totalRemainingMs);
     }
 
-    // Button
-    els.startPause.textContent          = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
-    els.startPause.style.background     = phaseColor;
-    els.startPause.style.color          = phaseType === 'prep' ? '#1a1400' :
-                                          phaseType === 'rest' ? '#071a10' :
-                                          phaseType === 'done' ? '#05102a' : '#fff';
+    els.startPause.textContent      = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
+    els.startPause.style.background = phaseColor;
+    els.startPause.style.color      = phaseType === 'prep' ? '#1a1400' :
+                                      phaseType === 'rest' ? '#071a10' :
+                                      phaseType === 'done' ? '#05102a' : '#fff';
   }
 
-  // ── Phase strip ────────────────────────────────────────────────────────────
   function buildPhaseStrip(schedule) {
     if (!showPhaseStrip || !els.phaseStrip) return;
     els.phaseStrip.innerHTML = schedule.map(p => {
@@ -225,10 +263,11 @@ export function buildTimerUI(config) {
     }).join('');
   }
 
-  // ── Load ───────────────────────────────────────────────────────────────────
   function reload() {
+    overlay.classList.remove('show');
     const schedule = buildSchedule();
     totalWorkoutMs = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
+    workRounds     = schedule.filter(p => p.type === 'work').length;
     buildPhaseStrip(schedule);
     engine.load(schedule);
     saveToStorage();
@@ -237,9 +276,15 @@ export function buildTimerUI(config) {
   loadFromStorage();
   reload();
 
-  // ── Event wiring ───────────────────────────────────────────────────────────
+  // ── Events ─────────────────────────────────────────────────────────────────
   els.startPause.addEventListener('click', () => engine.toggle());
   els.reset.addEventListener('click',     () => reload());
+  els.cDone.addEventListener('click',     () => overlay.classList.remove('show'));
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay || e.target.classList.contains('complete-flash')) {
+      overlay.classList.remove('show');
+    }
+  });
 
   if (onPreset) {
     drawerPreset.addEventListener('click', () => { onPreset(); reload(); });
@@ -269,6 +314,7 @@ export function buildTimerUI(config) {
     destroy() {
       engine.destroy();
       observer.disconnect();
+      overlay.remove();
       timerMain.innerHTML        = '';
       drawerInputGrid.innerHTML  = '';
       drawerPreset.style.display = 'none';

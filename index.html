@@ -24,74 +24,90 @@
 <div id="homeScreen">
   <header class="home-header">
     <h1 class="home-logo">Tony's Timers</h1>
+    <div class="brand-dots" aria-hidden="true">
+      <span style="background:#f4c84a"></span><span style="background:#ff5a4f"></span><span style="background:#28c98b"></span><span style="background:#78a6ff"></span>
+    </div>
     <p class="home-tagline">Every timer you need &middot; No ads &middot; Ever</p>
     <button class="edit-btn" id="editBtn" type="button">Edit Layout</button>
   </header>
 
   <div class="timer-grid" id="timerGrid">
+
     <div class="timer-card" data-timer="hiit" style="--card-color:#ff5a4f">
-      <div class="card-icon">🔥</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c0 3 4 5.5 4 9a4 4 0 0 1-8 0c0-1.6.7-2.9 1.6-4.1.4 1.6 1.2 2.6 2.4 2.1-.6-2-.6-4.5 0-7z"/></svg></div>
       <div class="card-name">HIIT</div>
-      <div class="card-desc">High-intensity intervals with work & rest rounds</div>
+      <div class="card-desc">High-intensity intervals with work &amp; rest rounds</div>
     </div>
+
     <div class="timer-card" data-timer="tabata" style="--card-color:#ff8c42">
-      <div class="card-icon">⚡</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 5 13h5l-1 9 8-12h-5l1-8z"/></svg></div>
       <div class="card-name">Tabata</div>
       <div class="card-desc">Classic 20s work / 10s rest protocol</div>
     </div>
+
     <div class="timer-card" data-timer="emom" style="--card-color:#f4c84a">
-      <div class="card-icon">📍</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7"/><path d="M12 6V3M9 3h6M12 13l3-3"/></svg></div>
       <div class="card-name">EMOM</div>
       <div class="card-desc">Every Minute On the Minute training</div>
     </div>
+
     <div class="timer-card" data-timer="amrap" style="--card-color:#a855f7">
-      <div class="card-icon">♾️</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-1.5-2.5-3-4-5-4a4 4 0 0 0 0 8c2 0 3.5-1.5 5-4 1.5 2.5 3 4 5 4a4 4 0 0 0 0-8c-2 0-3.5 1.5-5 4z"/></svg></div>
       <div class="card-name">AMRAP</div>
       <div class="card-desc">As Many Rounds As Possible countdown</div>
     </div>
+
     <div class="timer-card" data-timer="rest" style="--card-color:#28c98b">
-      <div class="card-icon">💚</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.3-9-8.5C1.5 8 3.5 5 6.5 5c2 0 4 1 5.5 3 1.5-2 3.5-3 5.5-3 3 0 5 3 3.5 6.5C19 15.7 12 20 12 20z"/></svg></div>
       <div class="card-name">Rest</div>
       <div class="card-desc">Simple between-set recovery timer</div>
     </div>
+
     <div class="timer-card" data-timer="pomodoro" style="--card-color:#e05c3a">
-      <div class="card-icon">🍅</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="6.5"/><path d="M12 7.5V5M12 7.5c0-1.8 1.4-3 3.2-3M12 7.5c0-1.8-1.4-3-3.2-3"/></svg></div>
       <div class="card-name">Pomodoro</div>
-      <div class="card-desc">Focus sessions with short & long breaks</div>
+      <div class="card-desc">Focus sessions with short &amp; long breaks</div>
     </div>
+
     <div class="timer-card" data-timer="meditation" style="--card-color:#6366f1">
-      <div class="card-icon">🧘</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15c-1.8-1.3-3-3.3-3-5.5C9 7 10.3 5 12 4c1.7 1 3 3 3 5.5 0 2.2-1.2 4.2-3 5.5z"/><path d="M12 15c-2.4.9-5.2.4-6.8-1.4 1-1.9 2.9-3 5-3.1M12 15c2.4.9 5.2.4 6.8-1.4-1-1.9-2.9-3-5-3.1M5.5 17.8c1.9 1.4 4.2 1.9 6.5 1.9s4.6-.5 6.5-1.9"/></svg></div>
       <div class="card-name">Meditation</div>
       <div class="card-desc">Timed sessions with gentle interval bells</div>
     </div>
+
     <div class="timer-card" data-timer="fasting" style="--card-color:#14b8a6">
-      <div class="card-icon">⏳</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10M7 21h10M8 3c0 4 2.8 5.4 4 6.5 1.2-1.1 4-2.5 4-6.5M8 21c0-4 2.8-5.4 4-6.5 1.2 1.1 4 2.5 4 6.5"/></svg></div>
       <div class="card-name">Fasting</div>
       <div class="card-desc">Track your 16:8, 18:6 or custom fast</div>
     </div>
+
     <div class="timer-card" data-timer="prayer" style="--card-color:#d4a517">
-      <div class="card-icon">✝️</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M7 9h10"/></svg></div>
       <div class="card-name">Prayer</div>
       <div class="card-desc">Quiet timed prayer with gentle reminders</div>
     </div>
+
     <div class="timer-card" data-timer="chess" style="--card-color:#78a6ff">
-      <div class="card-icon">♟️</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6.5" r="2.8"/><path d="M10 9.2c0 2.5-1 4.8-2.5 6.8h9C15 14 14 11.7 14 9.2M6.5 19.5h11M8.5 16h7"/></svg></div>
       <div class="card-name">Chess Clock</div>
       <div class="card-desc">Two-player turn-based countdown</div>
     </div>
+
     <div class="timer-card" data-timer="presentation" style="--card-color:#64748b">
-      <div class="card-icon">🎤</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></div>
       <div class="card-name">Presentation</div>
       <div class="card-desc">Keep speakers on track with slide timers</div>
     </div>
+
     <div class="timer-card" data-timer="cooking" style="--card-color:#f59e0b">
-      <div class="card-icon">🍳</div>
+      <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="12" r="6.5"/><circle cx="10" cy="12" r="2"/><path d="M16.5 12H22"/></svg></div>
       <div class="card-name">Cooking</div>
       <div class="card-desc">Multiple simultaneous kitchen timers</div>
     </div>
+
   </div>
 
-  <footer class="home-footer">Tony's Timers v2.0 &middot; Pay once, yours forever</footer>
+  <footer class="home-footer">Tony's Timers v2.1 &middot; Pay once, yours forever</footer>
 </div>
 
 <!-- ══════════════════════════════════════════════════════
@@ -100,7 +116,6 @@
 <div id="timerScreen">
   <div class="timer-shell">
 
-    <!-- Topbar -->
     <div class="timer-topbar">
       <button class="back-btn" id="backBtn" type="button">
         <span class="back-arrow">←</span> All Timers
@@ -113,11 +128,10 @@
       </div>
     </div>
 
-    <!-- Main timer panel (content injected per timer) -->
     <div class="timer-main" id="timerMain"></div>
 
-  </div><!-- end .timer-shell -->
-</div><!-- end #timerScreen -->
+  </div>
+</div>
 
 <!-- Settings drawer overlay (shared across all timers) -->
 <div class="settings-drawer-overlay" id="drawerOverlay"></div>
@@ -133,12 +147,7 @@
   <div class="input-grid" id="drawerInputGrid"></div>
 </div>
 
-  </div>
-</div>
-
-<!-- ══════════════════════════════════════════════════════
-     INSTALL BANNER
-═══════════════════════════════════════════════════════ -->
+<!-- Install banner -->
 <div id="installBanner">
   <p><strong>Add to Home Screen</strong> for the best experience — works offline too.</p>
   <button id="installBtn" type="button">Install</button>

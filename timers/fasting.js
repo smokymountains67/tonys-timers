@@ -1,4 +1,5 @@
 import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTimeLong, vibrate, VIB } from '../engine.js';
+import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
 const KEY = 'tonys-fasting-state';
@@ -18,10 +19,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
         <div class="phase-label" id="fastLabel">Ready to Fast</div>
       </div>
       <div class="ring-wrap">
-        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle class="ring-track" cx="60" cy="60" r="54"/>
-          <circle class="ring-fill" id="fastRing" cx="60" cy="60" r="54" style="stroke:${accent}"/>
-        </svg>
+        ${ringMarkup('fastRing', accent)}
         <div class="ring-center">
           <div class="time-display" id="fastTime" style="font-size:clamp(2.4rem,12vw,4rem)">00:00:00</div>
           <div class="info-key" id="fastStatus" style="margin-top:4px">Set your fast duration</div>

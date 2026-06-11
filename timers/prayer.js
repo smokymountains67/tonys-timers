@@ -1,5 +1,6 @@
 import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
          formatTime, vibrate, VIB } from '../engine.js';
+import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
 
@@ -30,10 +31,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
         <div class="phase-label" id="prayLabel">Be Still</div>
       </div>
       <div class="ring-wrap">
-        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle class="ring-track" cx="60" cy="60" r="54"/>
-          <circle class="ring-fill" id="prayRing" cx="60" cy="60" r="54" style="stroke:${accent}"/>
-        </svg>
+        ${ringMarkup('prayRing', accent)}
         <div class="ring-center">
           <div class="time-display" id="prayTime">--:--</div>
           <div class="info-key" id="prayStatus" style="margin-top:4px">Ready</div>

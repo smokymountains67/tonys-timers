@@ -1,5 +1,6 @@
 import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
          formatTime, vibrate, VIB } from '../engine.js';
+import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
 
@@ -19,10 +20,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
         <div class="phase-label" id="presLabel">Ready</div>
       </div>
       <div class="ring-wrap">
-        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
-          <circle class="ring-track" cx="60" cy="60" r="54"/>
-          <circle class="ring-fill" id="presRing" cx="60" cy="60" r="54" style="stroke:${accent}"/>
-        </svg>
+        ${ringMarkup('presRing', accent)}
         <div class="ring-center">
           <div class="time-display" id="presTime">--:--</div>
           <div class="info-key" id="presStatus" style="margin-top:4px"></div>
@@ -69,6 +67,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
       const warn   = !state.isComplete && state.remainingMs <= warnMs && state.remainingMs > 0;
 
       els.ring.style.stroke = warn ? '#ff5a4f' : accent;
+      els.ring.style.filter = `drop-shadow(0 0 6px ${warn ? '#ff5a4f' : accent}66)`;
       els.ring.style.strokeDashoffset = RING_LENGTH * (1 - state.progress);
       els.time.textContent = formatTime(state.remainingMs);
 

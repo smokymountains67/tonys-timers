@@ -1,71 +1,96 @@
 /**
- * Tony's Timers — Shared Timer Engine
- * All timers use this core. Each timer feeds it a schedule config.
+ * Tony's Timers — Shared Timer Engine v3
+ *
+ * v3: Absolute-timeline architecture.
+ *  - Anchored to wall-clock time (Date.now()) instead of frame deltas.
+ *  - Survives backgrounding, screen-off, app switches: on return it lands
+ *    on exactly the right phase with exactly the right time remaining.
+ *  - Hybrid ticking: setInterval heartbeat (correctness, runs while
+ *    throttled) + requestAnimationFrame (smooth ring while visible).
+ *  - AudioContext explicitly resumed (Android suspends it aggressively).
+ *
+ * Public API is unchanged from v2 — no other file needs to change.
  */
 
 export class TimerEngine {
   constructor(callbacks = {}) {
-    this.schedule        = [];
-    this.currentIndex    = 0;
-    this.phaseStartedAt  = 0;
-    this.remainingMs     = 0;
-    this.durationMs      = 0;
-    this.totalRemainingMs = 0;
-    this.rafId           = 0;
-    this.isRunning       = false;
-    this.wakeLock        = null;
+    this.schedule   = [];
+    this.boundaries = [];   // cumulative start offset (ms) of each phase
+    this.totalMs    = 0;
 
-    // Callbacks the timer UI hooks into
-    this.onTick      = callbacks.onTick      || (() => {});
-    this.onPhase     = callbacks.onPhase     || (() => {});
-    this.onComplete  = callbacks.onComplete  || (() => {});
-    this.onWakeLock  = callbacks.onWakeLock  || (() => {});
+    this.elapsedMs  = 0;    // accumulated elapsed when paused
+    this.anchorTime = 0;    // Date.now() anchor while running
+    this.isRunning  = false;
+
+    this.lastIndex  = 0;    // last phase index we announced
+    this.rafId      = 0;
+    this.intervalId = 0;
+    this.wakeLock   = null;
+
+    this.onTick     = callbacks.onTick     || (() => {});
+    this.onPhase    = callbacks.onPhase    || (() => {});
+    this.onComplete = callbacks.onComplete || (() => {});
+    this.onWakeLock = callbacks.onWakeLock || (() => {});
+
+    // Re-sync instantly when the app returns to the foreground
+    this._onVisibility = () => {
+      if (document.visibilityState === 'visible' && this.isRunning) {
+        this._sync();
+        if (!this.wakeLock) this._requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', this._onVisibility);
   }
 
-  // ── Load a schedule ────────────────────────────────────────────────────────
-  // schedule: array of { type, label, seconds, round? }
+  // ── Load a schedule ──────────────────────────────────────────────────────
+  // schedule: array of { type, label, seconds, roundLabel? }
   load(schedule) {
     this.stop();
-    this.schedule         = schedule;
-    this.currentIndex     = 0;
-    this.durationMs       = (schedule[0]?.seconds ?? 0) * 1000;
-    this.remainingMs      = this.durationMs;
-    this.totalRemainingMs = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
+    this.schedule   = schedule;
+    this.boundaries = [];
+    let acc = 0;
+    for (const p of schedule) {
+      this.boundaries.push(acc);
+      acc += p.seconds * 1000;
+    }
+    this.totalMs   = acc;
+    this.elapsedMs = 0;
+    this.lastIndex = 0;
     this.onTick(this._state());
   }
 
-  // ── Playback ───────────────────────────────────────────────────────────────
+  // ── Playback ─────────────────────────────────────────────────────────────
   start() {
     if (!this.schedule.length) return;
-    if (this.remainingMs <= 0) {
-      this.currentIndex     = 0;
-      this.durationMs       = (this.schedule[0]?.seconds ?? 0) * 1000;
-      this.remainingMs      = this.durationMs;
-      this.totalRemainingMs = this.schedule.reduce((s, p) => s + p.seconds * 1000, 0);
+    if (this.elapsedMs >= this.totalMs) {
+      // Restart from the top
+      this.elapsedMs = 0;
+      this.lastIndex = 0;
     }
-    this.isRunning     = true;
-    this.phaseStartedAt = performance.now() - (this.durationMs - this.remainingMs);
-    this.rafId = requestAnimationFrame((t) => this._tick(t));
+    this.isRunning  = true;
+    this.anchorTime = Date.now() - this.elapsedMs;
+    this._startLoops();
     this._requestWakeLock();
-    this.onTick(this._state());
+    this._sync();
   }
 
   pause() {
+    if (this.isRunning) {
+      this.elapsedMs = Math.min(this.totalMs, Date.now() - this.anchorTime);
+    }
     this.isRunning = false;
-    cancelAnimationFrame(this.rafId);
+    this._stopLoops();
     this._releaseWakeLock();
     this.onTick(this._state());
   }
 
   stop() {
-    this.pause();
-    if (this.schedule.length) {
-      this.currentIndex     = 0;
-      this.durationMs       = (this.schedule[0]?.seconds ?? 0) * 1000;
-      this.remainingMs      = this.durationMs;
-      this.totalRemainingMs = this.schedule.reduce((s, p) => s + p.seconds * 1000, 0);
-    }
-    this.onTick(this._state());
+    this.isRunning = false;
+    this._stopLoops();
+    this._releaseWakeLock();
+    this.elapsedMs = 0;
+    this.lastIndex = 0;
+    if (this.schedule.length) this.onTick(this._state());
   }
 
   toggle() {
@@ -73,77 +98,116 @@ export class TimerEngine {
     else this.start();
   }
 
-  // ── Internal tick ──────────────────────────────────────────────────────────
-  _tick(now) {
-    const prev           = this.remainingMs;
-    this.remainingMs     = Math.max(0, this.durationMs - (now - this.phaseStartedAt));
-    this.totalRemainingMs = Math.max(0, this.totalRemainingMs - (prev - this.remainingMs));
-    this.onTick(this._state());
-
-    if (this.remainingMs <= 0) {
-      this._advance();
-      return;
-    }
-    this.rafId = requestAnimationFrame((t) => this._tick(t));
+  // ── Internal: tick loops ─────────────────────────────────────────────────
+  _startLoops() {
+    this._stopLoops();
+    // Heartbeat: keeps phase logic honest even when rAF is throttled
+    this.intervalId = setInterval(() => this._sync(), 200);
+    // Smooth animation while visible
+    const raf = () => {
+      if (!this.isRunning) return;
+      this._sync();
+      this.rafId = requestAnimationFrame(raf);
+    };
+    this.rafId = requestAnimationFrame(raf);
   }
 
-  _advance() {
-    const leaving = this.schedule[this.currentIndex];
-    this.currentIndex += 1;
+  _stopLoops() {
+    cancelAnimationFrame(this.rafId);
+    clearInterval(this.intervalId);
+    this.rafId = 0;
+    this.intervalId = 0;
+  }
 
-    if (this.currentIndex >= this.schedule.length) {
-      this.isRunning        = false;
-      this.remainingMs      = 0;
-      this.totalRemainingMs = 0;
+  // ── Internal: sync state to the absolute timeline ────────────────────────
+  _sync() {
+    if (!this.isRunning) return;
+    const elapsed = Date.now() - this.anchorTime;
+
+    // Complete?
+    if (elapsed >= this.totalMs) {
+      this.elapsedMs = this.totalMs;
+      this.isRunning = false;
+      this._stopLoops();
       this._releaseWakeLock();
-      this.onComplete(leaving);
+      this.lastIndex = this.schedule.length - 1;
+      this.onComplete(this.schedule[this.schedule.length - 1]);
       this.onTick(this._state());
       return;
     }
 
-    const phase         = this.schedule[this.currentIndex];
-    this.durationMs     = phase.seconds * 1000;
-    this.remainingMs    = this.durationMs;
-    this.phaseStartedAt = performance.now();
-    this.onPhase(phase, leaving);
-    this.onTick(this._state());
-    this.rafId = requestAnimationFrame((t) => this._tick(t));
+    // Which phase are we in?
+    const index = this._indexAt(elapsed);
+
+    // Announce transition once per landing phase (no beep-spam after
+    // a long background gap — we announce where you ARE, not every
+    // phase you missed)
+    if (index !== this.lastIndex) {
+      const leaving = this.schedule[this.lastIndex];
+      this.lastIndex = index;
+      this.onPhase(this.schedule[index], leaving);
+    }
+
+    this.onTick(this._state(elapsed));
   }
 
-  // ── State snapshot for UI ──────────────────────────────────────────────────
-  _state() {
-    const phase      = this.schedule[this.currentIndex] ?? null;
-    const progress   = this.durationMs > 0 ? this.remainingMs / this.durationMs : 0;
-    const hasStarted = this.remainingMs > 0 && this.remainingMs < this.durationMs;
-    const isComplete = !this.isRunning && this.remainingMs === 0 && this.currentIndex >= this.schedule.length - 1 && this.schedule.length > 0;
+  _indexAt(elapsed) {
+    // boundaries is sorted ascending; find the last boundary <= elapsed
+    let lo = 0, hi = this.boundaries.length - 1, ans = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.boundaries[mid] <= elapsed) { ans = mid; lo = mid + 1; }
+      else hi = mid - 1;
+    }
+    return ans;
+  }
+
+  // ── State snapshot ───────────────────────────────────────────────────────
+  _state(elapsedArg) {
+    const hasSchedule = this.schedule.length > 0;
+    const elapsed = this.isRunning
+      ? (elapsedArg ?? (Date.now() - this.anchorTime))
+      : this.elapsedMs;
+
+    const clamped    = Math.min(elapsed, this.totalMs);
+    const index      = hasSchedule ? this._indexAt(Math.min(clamped, this.totalMs - 1)) : 0;
+    const phase      = this.schedule[index] ?? null;
+    const phaseStart = this.boundaries[index] ?? 0;
+    const durationMs = phase ? phase.seconds * 1000 : 0;
+    const intoPhase  = clamped - phaseStart;
+    const remainingMs = Math.max(0, durationMs - intoPhase);
+    const totalRemainingMs = Math.max(0, this.totalMs - clamped);
+    const isComplete = hasSchedule && clamped >= this.totalMs;
+    const progress   = durationMs > 0 ? remainingMs / durationMs : 0;
+    const hasStarted = clamped > 0 && !isComplete;
 
     return {
       phase,
-      currentIndex:     this.currentIndex,
+      currentIndex:     isComplete ? this.schedule.length - 1 : index,
       scheduleLength:   this.schedule.length,
-      remainingMs:      this.remainingMs,
-      totalRemainingMs: this.totalRemainingMs,
-      durationMs:       this.durationMs,
-      progress,
+      remainingMs:      isComplete ? 0 : remainingMs,
+      totalRemainingMs,
+      durationMs,
+      progress:         isComplete ? 0 : progress,
       isRunning:        this.isRunning,
       hasStarted,
       isComplete
     };
   }
 
-  // ── Wake Lock ──────────────────────────────────────────────────────────────
+  // ── Wake Lock ────────────────────────────────────────────────────────────
   async _requestWakeLock() {
-    if (!("wakeLock" in navigator)) return;
+    if (!('wakeLock' in navigator)) return;
     try {
-      this.wakeLock = await navigator.wakeLock.request("screen");
+      this.wakeLock = await navigator.wakeLock.request('screen');
       this.onWakeLock(true);
-      this.wakeLock.addEventListener("release", () => {
+      this.wakeLock.addEventListener('release', () => {
         this.wakeLock = null;
         this.onWakeLock(false);
-        // Re-acquire if still running (e.g. screen briefly off)
-        if (this.isRunning) this._requestWakeLock();
+        // Note: re-acquire happens on visibilitychange when we're visible
+        // again; requesting while hidden throws on most browsers.
       });
-    } catch { /* denied */ }
+    } catch { /* denied or unavailable */ }
   }
 
   async _releaseWakeLock() {
@@ -157,17 +221,30 @@ export class TimerEngine {
 
 // ── Shared audio ───────────────────────────────────────────────────────────────
 let _audioCtx;
+
 function getAudioCtx() {
   _audioCtx ||= new AudioContext();
+  // Android suspends aggressively; resume is async but fire-and-forget is fine
+  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => {});
   return _audioCtx;
 }
+
+// Warm up the AudioContext on the first user gesture so phase-change beeps
+// (which fire from timers, not gestures) are never blocked.
+const _warmup = () => {
+  try { getAudioCtx(); } catch { /* no audio */ }
+  document.removeEventListener('pointerdown', _warmup);
+  document.removeEventListener('keydown', _warmup);
+};
+document.addEventListener('pointerdown', _warmup, { once: true });
+document.addEventListener('keydown', _warmup, { once: true });
 
 export function beep(frequency = 660, length = 0.12, volume = 0.22) {
   try {
     const ctx  = getAudioCtx();
     const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "sine";
+    osc.type = 'sine';
     osc.frequency.value = frequency;
     gain.gain.setValueAtTime(0.001, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + 0.02);
@@ -179,7 +256,7 @@ export function beep(frequency = 660, length = 0.12, volume = 0.22) {
 }
 
 export function speak(text) {
-  if (!("speechSynthesis" in window)) return;
+  if (!('speechSynthesis' in window)) return;
   try {
     window.speechSynthesis.cancel();
     const utt  = new SpeechSynthesisUtterance(text);
@@ -192,23 +269,23 @@ export function speak(text) {
 
 export function vibrate(pattern) {
   try {
-    if ("vibrate" in navigator) navigator.vibrate(pattern);
+    if ('vibrate' in navigator) navigator.vibrate(pattern);
   } catch { /* unavailable */ }
 }
 
 // ── Shared utilities ───────────────────────────────────────────────────────────
 export function formatTime(totalMs) {
   const totalSeconds = Math.max(0, Math.ceil(totalMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
   return `${minutes}:${seconds}`;
 }
 
 export function formatTimeLong(totalMs) {
   const totalSeconds = Math.max(0, Math.ceil(totalMs / 1000));
   const hours   = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
   return hours > 0 ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 }
 
@@ -228,12 +305,12 @@ export function setTimeInputs(minEl, secEl, totalSeconds) {
 }
 
 // ── Sound mode ─────────────────────────────────────────────────────────────────
-export const SOUND_MODES  = ["all-on", "beep-only", "voice-only", "silent"];
-export const SOUND_LABELS = { "all-on": "All", "beep-only": "Beep", "voice-only": "Voice", "silent": "Off" };
-export const SOUND_ICONS  = { "all-on": "♪", "beep-only": "🔔", "voice-only": "💬", "silent": "🔇" };
+export const SOUND_MODES  = ['all-on', 'beep-only', 'voice-only', 'silent'];
+export const SOUND_LABELS = { 'all-on': 'All', 'beep-only': 'Beep', 'voice-only': 'Voice', 'silent': 'Off' };
+export const SOUND_ICONS  = { 'all-on': '♪', 'beep-only': '🔔', 'voice-only': '💬', 'silent': '🔇' };
 
-export function shouldBeep(mode)  { return mode === "all-on" || mode === "beep-only"; }
-export function shouldSpeak(mode) { return mode === "all-on" || mode === "voice-only"; }
+export function shouldBeep(mode)  { return mode === 'all-on' || mode === 'beep-only'; }
+export function shouldSpeak(mode) { return mode === 'all-on' || mode === 'voice-only'; }
 
 // ── Vibration patterns ─────────────────────────────────────────────────────────
 export const VIB = {

@@ -1,10 +1,11 @@
-const CACHE = 'tonys-timers-v7';
+const CACHE = 'tonys-timers-v8';
 const ASSETS = [
   '.',
   'index.html',
   'shared.css',
   'app.js',
   'engine.js',
+  'history.js',
   'manifest.webmanifest',
   'icons/icon.svg',
   'timers/ui.js',

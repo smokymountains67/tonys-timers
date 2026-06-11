@@ -1,4 +1,4 @@
-import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTimeLong, vibrate, VIB } from '../engine.js';
+import { clamp, beep, speak, shouldBeep, shouldSpeak, formatTimeLong, vibrate, VIB, logSession } from '../engine.js';
 import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
@@ -114,6 +114,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
     if (!isActive()) return;
     if (Date.now() - fastStartTime >= durationMs) {
       completed = true;
+      logSession('fasting', 'Fasting', durationMs);
       if (shouldBeep(soundMode())) beep(528, 1.0, 0.2);
       if (shouldSpeak(soundMode())) speak('Fast complete! Great discipline!');
       vibrate(VIB.done);

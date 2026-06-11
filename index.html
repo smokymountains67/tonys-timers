@@ -28,7 +28,10 @@
       <span style="background:#f4c84a"></span><span style="background:#ff5a4f"></span><span style="background:#28c98b"></span><span style="background:#78a6ff"></span>
     </div>
     <p class="home-tagline">Every timer you need &middot; No ads &middot; Ever</p>
-    <button class="edit-btn" id="editBtn" type="button">Edit Layout</button>
+    <div class="home-actions">
+      <button class="edit-btn" id="editBtn" type="button">Edit Layout</button>
+      <button class="edit-btn" id="historyBtn" type="button">History</button>
+    </div>
   </header>
 
   <div class="timer-grid" id="timerGrid">
@@ -108,6 +111,32 @@
   </div>
 
   <footer class="home-footer">Tony's Timers v2.1 &middot; Pay once, yours forever</footer>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     HISTORY SCREEN
+═══════════════════════════════════════════════════════ -->
+<div id="historyScreen">
+  <div class="timer-shell">
+    <div class="timer-topbar">
+      <button class="back-btn" id="historyBack" type="button">
+        <span class="back-arrow">←</span> Home
+      </button>
+      <span class="brand-small">Tony's Timers</span>
+    </div>
+    <div class="timer-panel" style="grid-template-rows:auto auto auto 1fr;align-content:start">
+      <div class="cal-header">
+        <button class="icon-btn" id="calPrev" type="button" aria-label="Previous month">‹</button>
+        <div class="cal-title" id="calTitle">—</div>
+        <button class="icon-btn" id="calNext" type="button" aria-label="Next month">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-detail" id="calDetail"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════════════

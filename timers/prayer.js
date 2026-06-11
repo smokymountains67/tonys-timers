@@ -1,5 +1,5 @@
 import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
-         formatTime, vibrate, VIB } from '../engine.js';
+         formatTime, vibrate, VIB, logSession } from '../engine.js';
 import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
@@ -97,6 +97,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
       softBell();
       if (shouldSpeak(soundMode())) speak('Amen. Prayer time complete.');
       vibrate(VIB.done);
+      logSession('prayer', 'Prayer', engine.totalMs);
     },
     onWakeLock(active) { setWakeLock(active); }
   });

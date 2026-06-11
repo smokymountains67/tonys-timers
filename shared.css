@@ -784,3 +784,182 @@ p, h1, h2, h3 { margin: 0; }
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   }
 }
+
+/* ── Home actions row ─────────────────────────────────────────────────────── */
+.home-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.home-actions .edit-btn { margin-top: 0; }
+
+/* ── History screen ───────────────────────────────────────────────────────── */
+#historyScreen { display: none; min-height: 100svh; flex-direction: column; }
+#historyScreen.active { display: flex; }
+
+#historyScreen.active .timer-shell {
+  animation: screen-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 150ms, transform 100ms;
+}
+
+.cal-cell:active:not(.empty) { transform: scale(0.94); }
+.cal-cell.empty { background: transparent; border: none; cursor: default; }
+.cal-cell.has-data { color: var(--text); border-color: #3a4560; }
+.cal-cell.today { outline: 1px solid var(--accent); outline-offset: 1px; }
+.cal-cell.selected { border-color: var(--accent); }
+
+.cal-day-num { font-weight: 800; }
+.cal-dots { display: flex; gap: 2px; }
+.cal-dots span { width: 4px; height: 4px; border-radius: 50%; }
+.cal-mins { font-size: 0.55rem; opacity: 0.7; }
+
+.cal-detail { display: grid; gap: 8px; align-content: start; }
+
+.cal-detail-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cal-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+}
+
+.detail-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.detail-name { flex: 1; font-weight: 700; }
+.detail-count { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
+
+.detail-time {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-detail-empty {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* ── Preset section in settings drawer ────────────────────────────────────── */
+.preset-section {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.preset-title {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.preset-row .p-name {
+  flex: 1;
+  font-weight: 700;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.p-del {
+  background: transparent;
+  color: #ff5a4f;
+  font-size: 0.95rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.preset-save-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.preset-save-row .field-input {
+  min-height: 42px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.preset-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}

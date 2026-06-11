@@ -66,7 +66,27 @@ export function setWakeLock(active) {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-async function openTimer(id) {
+const historyScreen = document.getElementById('historyScreen');
+const historyBtn    = document.getElementById('historyBtn');
+const historyBack   = document.getElementById('historyBack');
+let historyMod      = null;
+
+async function openHistoryScreen(push = true) {
+  historyMod ||= await import('./history.js');
+  if (currentTimer?.destroy) currentTimer.destroy();
+  currentTimer = null;
+  closeDrawer();
+  timerScreen.classList.remove('active');
+  homeScreen.style.display = 'none';
+  historyScreen.classList.add('active');
+  historyMod.openHistory();
+  if (push) history.pushState({ view: 'history' }, '', '#history');
+}
+
+historyBtn.addEventListener('click', () => openHistoryScreen());
+historyBack.addEventListener('click', () => { goHome(); });
+
+async function openTimer(id, push = true) {
   let mod;
   try {
     mod = await import(`./timers/${id}.js`);
@@ -78,10 +98,12 @@ async function openTimer(id) {
   if (currentTimer?.destroy) currentTimer.destroy();
   closeDrawer();
 
+  historyScreen.classList.remove('active');
   homeScreen.style.display = 'none';
   timerScreen.classList.add('active');
 
   currentTimer = await mod.init({
+    timerId: id,
     timerMain,
     drawerInputGrid,
     drawerTitle,
@@ -92,7 +114,7 @@ async function openTimer(id) {
     closeDrawer
   });
 
-  history.pushState({ timer: id }, '', `#${id}`);
+  if (push) history.pushState({ timer: id }, '', `#${id}`);
 }
 
 function goHome() {
@@ -100,6 +122,7 @@ function goHome() {
   currentTimer = null;
   closeDrawer();
   timerScreen.classList.remove('active');
+  historyScreen.classList.remove('active');
   homeScreen.style.display = '';
   drawerInputGrid.innerHTML = '';
   history.pushState({}, '', '#');
@@ -108,12 +131,22 @@ function goHome() {
 backBtn.addEventListener('click', goHome);
 
 window.addEventListener('popstate', (e) => {
-  if (e.state?.timer) openTimer(e.state.timer);
-  else goHome();
+  if (e.state?.timer) openTimer(e.state.timer, false);
+  else if (e.state?.view === 'history') openHistoryScreen(false);
+  else {
+    timerScreen.classList.remove('active');
+    historyScreen.classList.remove('active');
+    if (currentTimer?.destroy) currentTimer.destroy();
+    currentTimer = null;
+    closeDrawer();
+    homeScreen.style.display = '';
+  }
 });
 
-if (location.hash && location.hash.length > 1) {
-  openTimer(location.hash.slice(1));
+if (location.hash === '#history') {
+  openHistoryScreen(false);
+} else if (location.hash && location.hash.length > 1) {
+  openTimer(location.hash.slice(1), false);
 }
 
 // ── Timer grid: open, reorder, persist ────────────────────────────────────────

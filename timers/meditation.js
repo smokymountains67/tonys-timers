@@ -1,5 +1,5 @@
 import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
-         formatTime, vibrate, VIB } from '../engine.js';
+         formatTime, vibrate, VIB, logSession } from '../engine.js';
 import { ringMarkup } from './ui.js';
 
 const RING_LENGTH = 339.292;
@@ -85,6 +85,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
       gentleBell();
       if (shouldSpeak(soundMode())) speak('Meditation complete.');
       vibrate(VIB.done);
+      logSession('meditation', 'Meditation', engine.totalMs);
     },
     onWakeLock(active) { setWakeLock(active); }
   });

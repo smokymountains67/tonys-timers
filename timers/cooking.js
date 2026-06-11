@@ -1,5 +1,5 @@
 import { TimerEngine, clamp, beep, speak, shouldBeep, shouldSpeak,
-         formatTime, vibrate, VIB } from '../engine.js';
+         formatTime, vibrate, VIB, logSession } from '../engine.js';
 
 let nextId = 1;
 
@@ -42,6 +42,7 @@ export async function init({ timerMain, drawerInputGrid, drawerTitle, drawerPres
       onTick(state) { renderRow(t, state); },
       onComplete() {
         runningSet.delete(id); updateWakeDot();
+        logSession('cooking', t.name, t.secs * 1000);
         if (shouldBeep(soundMode())) {
           beep(880, 0.2); setTimeout(() => beep(660, 0.2), 250); setTimeout(() => beep(880, 0.3), 500);
         }

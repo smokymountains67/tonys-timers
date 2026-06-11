@@ -24,7 +24,10 @@ export async function init(ctx) {
     };
   }
 
-  function loadSettings(saved) { Object.assign(s, saved); }
+  function loadSettings(saved) {
+    Object.assign(s, saved);
+    applyToDOM(s);
+  }
 
   function buildSchedule() {
     const cfg = readSettings();

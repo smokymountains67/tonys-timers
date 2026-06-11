@@ -6,7 +6,7 @@
  */
 
 import { TimerEngine, beep, speak, vibrate, formatTime,
-         clamp, shouldBeep, shouldSpeak, VIB } from '../engine.js';
+         clamp, shouldBeep, shouldSpeak, VIB, logSession } from '../engine.js';
 
 export const RING_LENGTH = 339.292;
 
@@ -71,6 +71,7 @@ function buildCompleteOverlay() {
 export function buildTimerUI(config) {
   const {
     accent, accentDim,
+    timerId = 'timer',
     timerMain,
     drawerInputGrid, drawerTitle, drawerPreset,
     soundMode, setWakeLock,
@@ -98,7 +99,71 @@ export function buildTimerUI(config) {
     drawerPreset.style.display = 'none';
   }
 
-  drawerInputGrid.innerHTML = renderSettings ? renderSettings() : '';
+  const PRESETS_KEY = `tonys-presets-${timerId}`;
+
+  drawerInputGrid.innerHTML = (renderSettings ? renderSettings() : '') + `
+    <div class="preset-section">
+      <div class="preset-title">My Presets</div>
+      <div class="preset-list"></div>
+      <div class="preset-save-row">
+        <input class="field-input preset-name" placeholder="Preset name" maxlength="24">
+        <button class="btn-preset preset-save" type="button">Save</button>
+      </div>
+    </div>`;
+
+  const presetList = drawerInputGrid.querySelector('.preset-list');
+  const presetName = drawerInputGrid.querySelector('.preset-name');
+  const presetSave = drawerInputGrid.querySelector('.preset-save');
+
+  function getPresets() {
+    try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function setPresets(list) {
+    try { localStorage.setItem(PRESETS_KEY, JSON.stringify(list)); } catch {}
+  }
+
+  function renderPresetList() {
+    const presets = getPresets();
+    presetList.innerHTML = presets.length === 0
+      ? `<div class="preset-empty">None saved yet — set up your timer, then save it here.</div>`
+      : presets.map((p, i) => `
+          <div class="preset-row">
+            <span class="p-name">${p.name}</span>
+            <button class="btn-preset p-load" data-i="${i}" type="button">Load</button>
+            <button class="p-del" data-i="${i}" type="button" aria-label="Delete preset">✕</button>
+          </div>`).join('');
+  }
+
+  presetSave.addEventListener('click', () => {
+    const presets = getPresets();
+    const name = presetName.value.trim() || `Preset ${presets.length + 1}`;
+    presets.push({ name, settings: config.readSettings() });
+    while (presets.length > 10) presets.shift();
+    setPresets(presets);
+    presetName.value = '';
+    renderPresetList();
+  });
+
+  presetList.addEventListener('click', (e) => {
+    const load = e.target.closest('.p-load');
+    const del  = e.target.closest('.p-del');
+    if (load) {
+      const p = getPresets()[Number(load.dataset.i)];
+      if (p && config.loadSettings) {
+        config.loadSettings(p.settings);
+        reload();
+      }
+    } else if (del) {
+      const presets = getPresets();
+      presets.splice(Number(del.dataset.i), 1);
+      setPresets(presets);
+      renderPresetList();
+    }
+  });
+
+  renderPresetList();
 
   // ── Timer panel ────────────────────────────────────────────────────────────
   timerMain.innerHTML = `
@@ -196,6 +261,7 @@ export function buildTimerUI(config) {
       if (shouldBeep(soundMode())) beep(440, 0.25);
       if (shouldSpeak(soundMode())) speak('Complete. Great work!');
       vibrate(VIB.done);
+      logSession(timerId, timerName, totalWorkoutMs);
       // Celebration
       els.cTime.textContent   = formatTime(totalWorkoutMs);
       els.cRounds.textContent = workRounds || engine.schedule.length;
@@ -291,6 +357,7 @@ export function buildTimerUI(config) {
   }
 
   drawerInputGrid.querySelectorAll('input, select').forEach(input => {
+    if (input.closest('.preset-section')) return;
     input.addEventListener('change', () => {
       if (onSettingsChange) onSettingsChange(input);
       reload();
@@ -299,6 +366,7 @@ export function buildTimerUI(config) {
 
   const observer = new MutationObserver(() => {
     drawerInputGrid.querySelectorAll('input, select').forEach(input => {
+      if (input.closest('.preset-section')) return;
       if (!input.dataset.wired) {
         input.dataset.wired = '1';
         input.addEventListener('change', () => {

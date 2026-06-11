@@ -325,6 +325,23 @@ export function setTimeInputs(minEl, secEl, totalSeconds) {
   secEl.value = totalSeconds % 60;
 }
 
+// ── Session history ────────────────────────────────────────────────────────────
+const HISTORY_KEY = 'tonys-timers-history';
+
+export function logSession(timerId, timerName, durationMs) {
+  try {
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    h.push({ t: timerId, n: timerName, d: Date.now(), ms: durationMs });
+    while (h.length > 2000) h.shift();   // cap ~2000 sessions
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  } catch { /* storage unavailable */ }
+}
+
+export function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+  catch { return []; }
+}
+
 // ── Sound mode ─────────────────────────────────────────────────────────────────
 export const SOUND_MODES  = ['all-on', 'beep-only', 'voice-only', 'silent'];
 export const SOUND_LABELS = { 'all-on': 'All', 'beep-only': 'Beep', 'voice-only': 'Voice', 'silent': 'Off' };

@@ -1,4 +1,4 @@
-const CACHE = 'tonys-timers-v10';
+const CACHE = 'tonys-timers-v11';
 const ASSETS = [
   '.',
   'index.html',

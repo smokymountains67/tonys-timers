@@ -346,7 +346,20 @@ export function buildTimerUI(config) {
     }).join('');
   }
 
+  // Log a partial session if the user abandons a meaningfully-started workout
+  // (≥30s in AND ≥10% through; completions log separately in onComplete)
+  function logPartial() {
+    if (totalWorkoutMs <= 0 || !engine.schedule.length) return;
+    const elapsed = engine.isRunning
+      ? Math.min(totalWorkoutMs, Date.now() - engine.anchorTime)
+      : engine.elapsedMs;
+    if (elapsed >= totalWorkoutMs) return;
+    if (elapsed < 30000 || elapsed < totalWorkoutMs * 0.1) return;
+    logSession(timerId, timerName, elapsed, false);
+  }
+
   function reload() {
+    logPartial();
     overlay.classList.remove('show');
     const schedule = buildSchedule();
     totalWorkoutMs = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
@@ -412,6 +425,7 @@ export function buildTimerUI(config) {
 
   return {
     destroy() {
+      logPartial();
       engine.destroy();
       observer.disconnect();
       overlay.remove();

@@ -328,13 +328,26 @@ export function setTimeInputs(minEl, secEl, totalSeconds) {
 // ── Session history ────────────────────────────────────────────────────────────
 const HISTORY_KEY = 'tonys-timers-history';
 
-export function logSession(timerId, timerName, durationMs) {
+export function logSession(timerId, timerName, durationMs, completed = true) {
   try {
     const h = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
-    h.push({ t: timerId, n: timerName, d: Date.now(), ms: durationMs });
+    h.push({ t: timerId, n: timerName, d: Date.now(), ms: durationMs, c: completed ? 1 : 0 });
     while (h.length > 2000) h.shift();   // cap ~2000 sessions
     localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
   } catch { /* storage unavailable */ }
+}
+
+export function deleteSession(timestamp) {
+  try {
+    const h   = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    const idx = h.findIndex(e => e.d === timestamp);
+    if (idx >= 0) {
+      h.splice(idx, 1);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+      return true;
+    }
+  } catch { /* ignore */ }
+  return false;
 }
 
 export function getHistory() {

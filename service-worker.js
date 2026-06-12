@@ -1,4 +1,4 @@
-const CACHE = 'tonys-timers-v8';
+const CACHE = 'tonys-timers-v9';
 const ASSETS = [
   '.',
   'index.html',
@@ -21,7 +21,8 @@ const ASSETS = [
   'timers/prayer.js',
   'timers/chess.js',
   'timers/presentation.js',
-  'timers/cooking.js'
+  'timers/cooking.js',
+  'timers/debate.js'
 ];
 
 self.addEventListener('install', e => {

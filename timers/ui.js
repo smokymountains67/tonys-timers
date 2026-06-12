@@ -17,6 +17,15 @@ const PHASE_COLORS = {
   done: '#78a6ff'
 };
 
+// Pick readable text color for a given hex background
+function textOn(hex) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substr(0, 2), 16);
+  const g = parseInt(c.substr(2, 2), 16);
+  const b = parseInt(c.substr(4, 2), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#0c1018' : '#fff';
+}
+
 // ── Shared ring markup with stopwatch tick bezel ──────────────────────────────
 function ringTicks() {
   let out = '';
@@ -84,7 +93,13 @@ export function buildTimerUI(config) {
     presetLabel,
     onPreset,
     showPhaseStrip = true,
+    showNextButton = false,
+    phaseColors: customColors = {},
+    roundKeyLabel = 'Round',
+    countRounds,
   } = config;
+
+  const COLORS = { ...PHASE_COLORS, ...customColors };
 
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--accent-dim', accentDim);
@@ -184,13 +199,14 @@ export function buildTimerUI(config) {
 
       <div class="controls">
         <button class="btn-primary"   id="startPauseBtn" type="button">Start</button>
-        <button class="btn-secondary" id="resetBtn"      type="button">Reset</button>
+        ${showNextButton ? `<button class="btn-secondary" id="nextBtn" type="button" style="min-width:84px">Next →</button>` : ''}
+        <button class="btn-secondary" id="resetBtn" type="button"${showNextButton ? ' style="min-width:84px"' : ''}>Reset</button>
       </div>
 
       <div class="info-blocks" id="infoBlocks" style="display:none">
         <div class="info-block">
           <div class="info-value" id="roundDisplay">—</div>
-          <div class="info-key">Round</div>
+          <div class="info-key">${roundKeyLabel}</div>
         </div>
         <div class="info-block">
           <div class="info-pct" id="progressPct">0%</div>
@@ -207,6 +223,8 @@ export function buildTimerUI(config) {
     </div>`;
 
   const overlay = buildCompleteOverlay();
+  const roundsLabelEl = overlay.querySelector('.c-rounds').nextElementSibling;
+  if (roundsLabelEl) roundsLabelEl.textContent = roundKeyLabel + 's';
 
   const els = {
     phaseEyebrow: document.getElementById('phaseEyebrow'),
@@ -216,6 +234,7 @@ export function buildTimerUI(config) {
     timeDisplay:  document.getElementById('timeDisplay'),
     phaseStrip:   document.getElementById('phaseStrip'),
     startPause:   document.getElementById('startPauseBtn'),
+    next:         document.getElementById('nextBtn'),
     reset:        document.getElementById('resetBtn'),
     infoBlocks:   document.getElementById('infoBlocks'),
     roundDisplay: document.getElementById('roundDisplay'),
@@ -276,7 +295,7 @@ export function buildTimerUI(config) {
             isRunning, hasStarted, isComplete, currentIndex } = state;
 
     const phaseType  = isComplete ? 'done' : (phase?.type || 'prep');
-    const phaseColor = PHASE_COLORS[phaseType] || accent;
+    const phaseColor = COLORS[phaseType] || accent;
 
     els.ringFill.style.stroke = phaseColor;
     els.ringFill.style.filter = `drop-shadow(0 0 6px ${phaseColor}66)`;
@@ -290,7 +309,7 @@ export function buildTimerUI(config) {
       els.phaseEyebrow.style.color = phaseColor;
       els.phaseLabel.textContent   = 'Complete!';
     } else if (phase) {
-      els.phaseEyebrow.textContent = phase.type.toUpperCase();
+      els.phaseEyebrow.textContent = phase.eyebrow || phase.type.toUpperCase();
       els.phaseEyebrow.style.color = phaseColor;
       els.phaseLabel.textContent   = phase.label;
     }
@@ -316,15 +335,13 @@ export function buildTimerUI(config) {
 
     els.startPause.textContent      = isRunning ? 'Pause' : hasStarted ? 'Resume' : 'Start';
     els.startPause.style.background = phaseColor;
-    els.startPause.style.color      = phaseType === 'prep' ? '#1a1400' :
-                                      phaseType === 'rest' ? '#071a10' :
-                                      phaseType === 'done' ? '#05102a' : '#fff';
+    els.startPause.style.color      = textOn(phaseColor);
   }
 
   function buildPhaseStrip(schedule) {
     if (!showPhaseStrip || !els.phaseStrip) return;
     els.phaseStrip.innerHTML = schedule.map(p => {
-      const col = PHASE_COLORS[p.type] || accent;
+      const col = COLORS[p.type] || accent;
       return `<span class="phase-dot ${p.type}" style="--dot-color:${col}"></span>`;
     }).join('');
   }
@@ -333,7 +350,8 @@ export function buildTimerUI(config) {
     overlay.classList.remove('show');
     const schedule = buildSchedule();
     totalWorkoutMs = schedule.reduce((s, p) => s + p.seconds * 1000, 0);
-    workRounds     = schedule.filter(p => p.type === 'work').length;
+    workRounds     = countRounds ? countRounds(schedule)
+                                 : schedule.filter(p => p.type === 'work').length;
     buildPhaseStrip(schedule);
     engine.load(schedule);
     saveToStorage();
@@ -345,6 +363,20 @@ export function buildTimerUI(config) {
   // ── Events ─────────────────────────────────────────────────────────────────
   els.startPause.addEventListener('click', () => engine.toggle());
   els.reset.addEventListener('click',     () => reload());
+
+  if (els.next) {
+    els.next.addEventListener('click', () => {
+      if (!engine.schedule.length) return;
+      const ni = engine.lastIndex + 1;
+      engine.seekToIndex(ni);
+      if (ni < engine.schedule.length) {
+        const p = engine.schedule[ni];
+        const s = phaseSounds[p.type] || {};
+        if (shouldBeep(soundMode())) beep(s.freq || 660, 0.1);
+        if (shouldSpeak(soundMode())) speak(s.voice || p.label);
+      }
+    });
+  }
   els.cDone.addEventListener('click',     () => overlay.classList.remove('show'));
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay || e.target.classList.contains('complete-flash')) {

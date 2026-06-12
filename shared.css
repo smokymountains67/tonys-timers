@@ -963,3 +963,39 @@ p, h1, h2, h3 { margin: 0; }
   font-size: 0.8rem;
   line-height: 1.5;
 }
+
+/* ── Backup & restore section ─────────────────────────────────────────────── */
+.backup-section {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.backup-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.backup-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.backup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.backup-actions .btn-secondary {
+  min-height: 46px;
+  min-width: 0;
+  font-size: 0.95rem;
+}

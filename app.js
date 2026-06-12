@@ -291,3 +291,67 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js').catch(() => {});
 }
+
+// ── Backup & restore ──────────────────────────────────────────────────────────
+const exportBtn  = document.getElementById('exportBtn');
+const importBtn  = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+
+exportBtn?.addEventListener('click', () => {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('tonys-')) data[k] = localStorage.getItem(k);
+  }
+  const payload = {
+    app: 'tonys-timers',
+    version: 1,
+    exported: new Date().toISOString(),
+    data
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `tonys-timers-backup-${payload.exported.slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
+
+importBtn?.addEventListener('click', () => importFile.click());
+
+importFile?.addEventListener('change', () => {
+  const file = importFile.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(reader.result);
+      if (payload?.app !== 'tonys-timers' || !payload.data) throw new Error('bad file');
+      const keys = Object.keys(payload.data).filter(k => k.startsWith('tonys-'));
+      if (!keys.length) throw new Error('empty');
+      const when = payload.exported ? payload.exported.slice(0, 10) : 'unknown date';
+      if (!confirm(`Restore ${keys.length} saved items from ${when}? This overwrites current data.`)) return;
+      keys.forEach(k => {
+        try { localStorage.setItem(k, payload.data[k]); } catch { /* quota */ }
+      });
+      alert('Backup restored! Reloading…');
+      location.reload();
+    } catch {
+      alert("That doesn't look like a Tony's Timers backup file.");
+    } finally {
+      importFile.value = '';
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ── Persistent storage ────────────────────────────────────────────────────────
+// Asks the browser to protect our data from automatic eviction under storage
+// pressure. (Does not survive an explicit user "clear site data" — that's what
+// Export is for.)
+if (navigator.storage?.persist) {
+  navigator.storage.persist().catch(() => {});
+}
